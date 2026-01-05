@@ -867,15 +867,24 @@ export default function ProcessDetailPage() {
 
                             {/* Contacts Section */}
                             <div className="mt-4">
-                              <button
-                                onClick={() => setExpandedStep(isExpanded ? null : step.id)}
-                                className="text-sm text-slate-600 hover:text-slate-900 flex items-center gap-1"
-                              >
-                                <Users className="h-4 w-4" />
-                                {stepContacts.length} contact{stepContacts.length !== 1 ? 's' : ''}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setExpandedStep(isExpanded ? null : step.id)}
+                                  className="text-sm text-slate-600 hover:text-slate-900 flex items-center gap-1"
+                                >
+                                  <Users className="h-4 w-4" />
+                                  {stepContacts.length} contact{stepContacts.length !== 1 ? 's' : ''}
+                                </button>
+                                <button
+                                  onClick={() => handleAddContact(step.id)}
+                                  className="h-5 w-5 rounded-full bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors"
+                                  title="Add contact"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </div>
 
-                              {isExpanded && (
+                              {isExpanded && stepContacts.length > 0 && (
                                 <div className="mt-3 space-y-2">
                                   {stepContacts.map(contact => (
                                     <div key={contact.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
@@ -887,8 +896,8 @@ export default function ProcessDetailPage() {
                                             className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
                                           />
                                         ) : (
-                                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center shadow-sm">
-                                            <User className="h-5 w-5 text-slate-500" />
+                                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
+                                            {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                           </div>
                                         )}
                                         <div>
@@ -929,15 +938,6 @@ export default function ProcessDetailPage() {
                                       </div>
                                     </div>
                                   ))}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleAddContact(step.id)}
-                                    className="w-full gap-2"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                    Add Contact
-                                  </Button>
                                 </div>
                               )}
                             </div>
