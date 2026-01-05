@@ -228,12 +228,15 @@ export default function ProcessDetailPage() {
   const handleStepSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Combine date and time
+    // Combine date and time into proper ISO string with timezone
     let scheduledDate = null;
     if (stepFormData.scheduled_date) {
-      scheduledDate = stepFormData.scheduled_time
-        ? `${stepFormData.scheduled_date}T${stepFormData.scheduled_time}:00`
-        : `${stepFormData.scheduled_date}T00:00:00`;
+      const [year, month, day] = stepFormData.scheduled_date.split('-').map(Number);
+      const [hours, minutes] = stepFormData.scheduled_time
+        ? stepFormData.scheduled_time.split(':').map(Number)
+        : [0, 0];
+      const localDate = new Date(year, month - 1, day, hours, minutes);
+      scheduledDate = localDate.toISOString();
     }
 
     const stepData = {
@@ -315,11 +318,25 @@ export default function ProcessDetailPage() {
 
   const handleEditStep = (step: ProcessStep) => {
     setEditingStep(step);
-    const dateTime = step.scheduled_date ? new Date(step.scheduled_date) : null;
+    let dateStr = "";
+    let timeStr = "";
+
+    if (step.scheduled_date) {
+      const dateTime = new Date(step.scheduled_date);
+      // Use local timezone for both date and time
+      const year = dateTime.getFullYear();
+      const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+      const day = String(dateTime.getDate()).padStart(2, '0');
+      const hours = String(dateTime.getHours()).padStart(2, '0');
+      const minutes = String(dateTime.getMinutes()).padStart(2, '0');
+      dateStr = `${year}-${month}-${day}`;
+      timeStr = `${hours}:${minutes}`;
+    }
+
     setStepFormData({
       step_type: step.step_type,
-      scheduled_date: dateTime ? dateTime.toISOString().split("T")[0] : "",
-      scheduled_time: dateTime ? dateTime.toTimeString().slice(0, 5) : "",
+      scheduled_date: dateStr,
+      scheduled_time: timeStr,
       status: step.status,
       objectives: step.objectives?.join("\n") || "",
       notes: step.notes || "",
