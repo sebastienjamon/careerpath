@@ -217,21 +217,6 @@ export default function ProcessesPage() {
     fetchProcesses();
   };
 
-  const handleStatusChange = async (id: string, status: RecruitmentProcess["status"]) => {
-    const { error } = await supabase
-      .from("recruitment_processes")
-      .update({ status })
-      .eq("id", id);
-
-    if (error) {
-      toast.error("Failed to update status");
-      return;
-    }
-
-    toast.success("Status updated");
-    fetchProcesses();
-  };
-
   const resetForm = () => {
     setFormData({
       company_name: "",
@@ -595,23 +580,7 @@ export default function ProcessesPage() {
                       </Link>
 
                       <div className="flex items-center gap-3">
-                        <Select
-                          value={process.status}
-                          onValueChange={(value) =>
-                            handleStatusChange(process.id, value as RecruitmentProcess["status"])
-                          }
-                        >
-                          <SelectTrigger className="w-[140px]">
-                            {getStatusBadge(process.status)}
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {getStatusBadge(process.status)}
 
                         <Button
                           variant="ghost"
