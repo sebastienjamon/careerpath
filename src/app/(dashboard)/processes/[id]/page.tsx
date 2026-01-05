@@ -146,7 +146,6 @@ export default function ProcessDetailPage() {
   const [editingStep, setEditingStep] = useState<ProcessStep | null>(null);
   const [editingContact, setEditingContact] = useState<StepContact | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
-  const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [isEventPickerOpen, setIsEventPickerOpen] = useState(false);
   const [eventPickerStepId, setEventPickerStepId] = useState<string | null>(null);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
@@ -795,7 +794,6 @@ export default function ProcessDetailPage() {
               {steps.map((step, index) => {
                 const StepIcon = getStepIcon(step.step_type);
                 const stepContacts = contacts[step.id] || [];
-                const isExpanded = expandedStep === step.id;
 
                 return (
                   <div key={step.id} className="relative pl-14">
@@ -867,14 +865,9 @@ export default function ProcessDetailPage() {
 
                             {/* Contacts Section */}
                             <div className="mt-4">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => setExpandedStep(isExpanded ? null : step.id)}
-                                  className="text-sm text-slate-600 hover:text-slate-900 flex items-center gap-1"
-                                >
-                                  <Users className="h-4 w-4" />
-                                  {stepContacts.length} contact{stepContacts.length !== 1 ? 's' : ''}
-                                </button>
+                              <div className="flex items-center gap-2 text-sm text-slate-600">
+                                <Users className="h-4 w-4" />
+                                <span>{stepContacts.length} contact{stepContacts.length !== 1 ? 's' : ''}</span>
                                 <button
                                   onClick={() => handleAddContact(step.id)}
                                   className="h-5 w-5 rounded-full bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors"
@@ -884,7 +877,7 @@ export default function ProcessDetailPage() {
                                 </button>
                               </div>
 
-                              {isExpanded && stepContacts.length > 0 && (
+                              {stepContacts.length > 0 && (
                                 <div className="mt-3 space-y-2">
                                   {stepContacts.map(contact => (
                                     <div key={contact.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
