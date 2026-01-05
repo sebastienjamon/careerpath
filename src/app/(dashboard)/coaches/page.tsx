@@ -69,6 +69,7 @@ export default function CoachesPage() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isCurrentUserCoach, setIsCurrentUserCoach] = useState(false);
 
   const [bookingData, setBookingData] = useState({
     duration: "60",
@@ -99,6 +100,16 @@ export default function CoachesPage() {
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setCurrentUserId(user?.id || null);
+
+    if (user) {
+      const { data: coach } = await supabase
+        .from("coaches")
+        .select("id, stripe_onboarding_complete")
+        .eq("user_id", user.id)
+        .single();
+
+      setIsCurrentUserCoach(!!coach?.stripe_onboarding_complete);
+    }
   };
 
   const fetchCoaches = async () => {
@@ -198,14 +209,24 @@ export default function CoachesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Career Coaches</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-900">Career Coaches</h1>
+            {isCurrentUserCoach && (
+              <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                <GraduationCap className="h-3 w-3 mr-1" />
+                You&apos;re a Coach
+              </Badge>
+            )}
+          </div>
           <p className="text-slate-600 mt-1">
             Find experienced coaches to help you prepare for interviews
           </p>
         </div>
-        <Link href="/become-coach">
-          <Button variant="outline">Become a Coach</Button>
-        </Link>
+        {!isCurrentUserCoach && (
+          <Link href="/become-coach">
+            <Button variant="outline">Become a Coach</Button>
+          </Link>
+        )}
       </div>
 
       <div className="relative max-w-md">
@@ -226,13 +247,19 @@ export default function CoachesPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <GraduationCap className="h-12 w-12 text-slate-300 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900">No coaches available yet</h3>
+            <h3 className="text-lg font-medium text-slate-900">
+              {isCurrentUserCoach ? "No other coaches available yet" : "No coaches available yet"}
+            </h3>
             <p className="text-slate-500 mt-1 text-center max-w-sm">
-              Be the first to offer coaching services on the platform!
+              {isCurrentUserCoach
+                ? "You're currently the only coach on the platform. Share the link to invite others!"
+                : "Be the first to offer coaching services on the platform!"}
             </p>
-            <Link href="/become-coach" className="mt-4">
-              <Button>Become a Coach</Button>
-            </Link>
+            {!isCurrentUserCoach && (
+              <Link href="/become-coach" className="mt-4">
+                <Button>Become a Coach</Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -302,29 +329,31 @@ export default function CoachesPage() {
         </div>
       )}
 
-      {/* Become a Coach CTA */}
-      <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-100">
-        <CardContent className="py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                <GraduationCap className="h-6 w-6 text-purple-600" />
+      {/* Become a Coach CTA - only show if not already a coach */}
+      {!isCurrentUserCoach && (
+        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-100">
+          <CardContent className="py-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                  <GraduationCap className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">Become a Coach</h3>
+                  <p className="text-sm text-slate-600">
+                    Share your expertise and earn 85% of each session
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-slate-900">Become a Coach</h3>
-                <p className="text-sm text-slate-600">
-                  Share your expertise and earn 85% of each session
-                </p>
-              </div>
+              <Link href="/become-coach">
+                <Button variant="outline" className="whitespace-nowrap">
+                  Get Started
+                </Button>
+              </Link>
             </div>
-            <Link href="/become-coach">
-              <Button variant="outline" className="whitespace-nowrap">
-                Get Started
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Booking Dialog */}
       <Dialog open={isBookingOpen} onOpenChange={setIsBookingOpen}>

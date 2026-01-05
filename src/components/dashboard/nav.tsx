@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import {
   Briefcase,
   LayoutDashboard,
@@ -40,9 +41,10 @@ const navigation = [
 
 interface DashboardNavProps {
   user: User;
+  isCoach?: boolean;
 }
 
-export function DashboardNav({ user }: DashboardNavProps) {
+export function DashboardNav({ user, isCoach }: DashboardNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -161,9 +163,16 @@ export function DashboardNav({ user }: DashboardNavProps) {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col items-start text-left">
-                        <span className="text-sm font-medium text-slate-900 truncate max-w-[160px]">
-                          {user.user_metadata?.full_name || "User"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-900 truncate max-w-[130px]">
+                            {user.user_metadata?.full_name || "User"}
+                          </span>
+                          {isCoach && (
+                            <Badge className="bg-purple-100 text-purple-700 text-[10px] px-1.5 py-0">
+                              Coach
+                            </Badge>
+                          )}
+                        </div>
                         <span className="text-xs text-slate-500 truncate max-w-[160px]">
                           {user.email}
                         </span>
