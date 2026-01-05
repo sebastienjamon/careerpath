@@ -15,15 +15,57 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Linkedin, Sparkles, ChevronRight } from "lucide-react";
+
 import { toast } from "sonner";
 import Link from "next/link";
+
+const MONTHS = [
+  { value: "01", label: "Jan" },
+  { value: "02", label: "Feb" },
+  { value: "03", label: "Mar" },
+  { value: "04", label: "Apr" },
+  { value: "05", label: "May" },
+  { value: "06", label: "Jun" },
+  { value: "07", label: "Jul" },
+  { value: "08", label: "Aug" },
+  { value: "09", label: "Sep" },
+  { value: "10", label: "Oct" },
+  { value: "11", label: "Nov" },
+  { value: "12", label: "Dec" },
+];
+
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 50 }, (_, i) => (currentYear - i).toString());
+
+// Helper to parse YYYY-MM format (handles partial values like "-03" or "2020-")
+const parseYearMonth = (date: string) => {
+  if (!date) return { month: "", year: "" };
+  const parts = date.split("-");
+  return {
+    year: parts[0] || "",
+    month: parts[1] || ""
+  };
+};
+
+// Helper to format to YYYY-MM (allows partial values)
+const formatYearMonth = (month: string, year: string) => {
+  if (!month && !year) return "";
+  return `${year || ""}-${month || ""}`;
+};
 
 interface CareerExperience {
   id: string;
   user_id: string;
   company_name: string;
+  company_website: string | null;
   job_title: string;
   start_date: string;
   end_date: string | null;
@@ -33,6 +75,30 @@ interface CareerExperience {
   created_at: string;
   updated_at: string;
 }
+
+// Extract domain from URL or domain string
+const extractDomain = (input: string | null): string | null => {
+  if (!input) return null;
+  try {
+    // If it's already just a domain
+    if (!input.includes('/') && input.includes('.')) {
+      return input.toLowerCase().replace(/^www\./, '');
+    }
+    // Parse as URL
+    const url = new URL(input.startsWith('http') ? input : `https://${input}`);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+};
+
+// Get company logo URL using Google's favicon service (more reliable)
+const getCompanyLogoUrl = (website: string | null): string | null => {
+  const domain = extractDomain(website);
+  if (!domain) return null;
+  // Google's favicon service - returns high quality favicons
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+};
 
 export default function JourneyPage() {
   const supabase = createClient();
@@ -53,6 +119,7 @@ export default function JourneyPage() {
 
   const [formData, setFormData] = useState({
     company_name: "",
+    company_website: "",
     job_title: "",
     start_date: "",
     end_date: "",
@@ -60,6 +127,7 @@ export default function JourneyPage() {
     skills: "",
     is_current: false,
   });
+  const [failedLogos, setFailedLogos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchExperiences();
@@ -118,16 +186,22 @@ export default function JourneyPage() {
     }
   };
 
+  // Helper to check if date is complete (has both month and year)
+  const isDateComplete = (date: string) => {
+    const { month, year } = parseYearMonth(date);
+    return month && year;
+  };
+
   const saveQuickExperiences = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const validExperiences = quickAddExperiences.filter(
-      exp => exp.company_name && exp.job_title && exp.start_date
+      exp => exp.company_name && exp.job_title && isDateComplete(exp.start_date)
     );
 
     if (validExperiences.length === 0) {
-      toast.error("Please add at least one experience with company, title, and start date");
+      toast.error("Please add at least one experience with company, title, and complete start date (MM/YYYY)");
       return;
     }
 
@@ -135,8 +209,8 @@ export default function JourneyPage() {
       user_id: user.id,
       company_name: exp.company_name,
       job_title: exp.job_title,
-      start_date: exp.start_date,
-      end_date: exp.is_current ? null : exp.end_date || null,
+      start_date: `${exp.start_date}-01`, // Convert YYYY-MM to YYYY-MM-DD
+      end_date: exp.is_current ? null : (isDateComplete(exp.end_date) ? `${exp.end_date}-01` : null),
       is_current: exp.is_current,
       skills: [],
       description: null,
@@ -156,9 +230,13 @@ export default function JourneyPage() {
   };
 
   const fetchExperiences = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data, error } = await supabase
       .from("career_experiences")
       .select("*")
+      .eq("user_id", user.id)
       .order("start_date", { ascending: false });
 
     if (error) {
@@ -176,12 +254,19 @@ export default function JourneyPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Convert YYYY-MM to YYYY-MM-DD for database
+    const formatDateForDb = (date: string) => {
+      if (!date || !isDateComplete(date)) return null;
+      return `${date}-01`;
+    };
+
     const experienceData = {
       user_id: user.id,
       company_name: formData.company_name,
+      company_website: formData.company_website || null,
       job_title: formData.job_title,
-      start_date: formData.start_date,
-      end_date: formData.is_current ? null : formData.end_date || null,
+      start_date: formatDateForDb(formData.start_date),
+      end_date: formData.is_current ? null : formatDateForDb(formData.end_date),
       description: formData.description || null,
       skills: formData.skills ? formData.skills.split(",").map((s) => s.trim()) : [],
       is_current: formData.is_current,
@@ -215,11 +300,17 @@ export default function JourneyPage() {
 
   const handleEdit = (experience: CareerExperience) => {
     setEditingExperience(experience);
+    // Convert YYYY-MM-DD from database to YYYY-MM for form
+    const dbDateToForm = (date: string | null) => {
+      if (!date) return "";
+      return date.substring(0, 7); // Take YYYY-MM from YYYY-MM-DD
+    };
     setFormData({
       company_name: experience.company_name,
+      company_website: experience.company_website || "",
       job_title: experience.job_title,
-      start_date: experience.start_date,
-      end_date: experience.end_date || "",
+      start_date: dbDateToForm(experience.start_date),
+      end_date: dbDateToForm(experience.end_date),
       description: experience.description || "",
       skills: experience.skills?.join(", ") || "",
       is_current: experience.is_current,
@@ -244,6 +335,7 @@ export default function JourneyPage() {
   const resetForm = () => {
     setFormData({
       company_name: "",
+      company_website: "",
       job_title: "",
       start_date: "",
       end_date: "",
@@ -318,30 +410,106 @@ export default function JourneyPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="company_website">Company Website (for logo)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="company_website"
+                    value={formData.company_website}
+                    onChange={(e) =>
+                      setFormData({ ...formData, company_website: e.target.value })
+                    }
+                    placeholder="microsoft.com"
+                    className="flex-1"
+                  />
+                  {formData.company_website && getCompanyLogoUrl(formData.company_website) && (
+                    <div className="h-10 w-10 rounded border flex items-center justify-center bg-white">
+                      <img
+                        src={getCompanyLogoUrl(formData.company_website)!}
+                        alt="Logo preview"
+                        className="h-6 w-6 object-contain"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">
+                  Enter the company domain to display their logo
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="start_date">Start Date</Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, start_date: e.target.value })
-                    }
-                    required
-                  />
+                  <Label>Start Date</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={parseYearMonth(formData.start_date).month}
+                      onValueChange={(month) =>
+                        setFormData({ ...formData, start_date: formatYearMonth(month, parseYearMonth(formData.start_date).year) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="MM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={parseYearMonth(formData.start_date).year}
+                      onValueChange={(year) =>
+                        setFormData({ ...formData, start_date: formatYearMonth(parseYearMonth(formData.start_date).month, year) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="YYYY" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {YEARS.map((y) => (
+                          <SelectItem key={y} value={y}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="end_date">End Date</Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, end_date: e.target.value })
-                    }
-                    disabled={formData.is_current}
-                  />
+                  <Label>End Date</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={parseYearMonth(formData.end_date).month}
+                      onValueChange={(month) =>
+                        setFormData({ ...formData, end_date: formatYearMonth(month, parseYearMonth(formData.end_date).year) })
+                      }
+                      disabled={formData.is_current}
+                    >
+                      <SelectTrigger className={formData.is_current ? "opacity-50" : ""}>
+                        <SelectValue placeholder="MM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={parseYearMonth(formData.end_date).year}
+                      onValueChange={(year) =>
+                        setFormData({ ...formData, end_date: formatYearMonth(parseYearMonth(formData.end_date).month, year) })
+                      }
+                      disabled={formData.is_current}
+                    >
+                      <SelectTrigger className={formData.is_current ? "opacity-50" : ""}>
+                        <SelectValue placeholder="YYYY" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {YEARS.map((y) => (
+                          <SelectItem key={y} value={y}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -358,31 +526,6 @@ export default function JourneyPage() {
                 <Label htmlFor="is_current" className="font-normal">
                   I currently work here
                 </Label>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Describe your responsibilities and achievements..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="skills">Skills (comma-separated)</Label>
-                <Input
-                  id="skills"
-                  value={formData.skills}
-                  onChange={(e) =>
-                    setFormData({ ...formData, skills: e.target.value })
-                  }
-                  placeholder="React, TypeScript, Node.js"
-                />
               </div>
 
               <div className="flex justify-end gap-2">
@@ -475,40 +618,101 @@ export default function JourneyPage() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    placeholder="Company name"
-                    value={exp.company_name}
-                    onChange={(e) => updateQuickExperience(index, "company_name", e.target.value)}
-                  />
-                  <Input
-                    placeholder="Job title"
-                    value={exp.job_title}
-                    onChange={(e) => updateQuickExperience(index, "job_title", e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-3 items-center">
-                  <Input
-                    type="date"
-                    placeholder="Start date"
-                    value={exp.start_date}
-                    onChange={(e) => updateQuickExperience(index, "start_date", e.target.value)}
-                  />
-                  <Input
-                    type="date"
-                    placeholder="End date"
-                    value={exp.end_date}
-                    onChange={(e) => updateQuickExperience(index, "end_date", e.target.value)}
-                    disabled={exp.is_current}
-                  />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={exp.is_current}
-                      onChange={(e) => updateQuickExperience(index, "is_current", e.target.checked)}
-                      className="rounded"
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">Company</Label>
+                    <Input
+                      placeholder="e.g. Google"
+                      value={exp.company_name}
+                      onChange={(e) => updateQuickExperience(index, "company_name", e.target.value)}
                     />
-                    Current
-                  </label>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">Job Title</Label>
+                    <Input
+                      placeholder="e.g. Software Engineer"
+                      value={exp.job_title}
+                      onChange={(e) => updateQuickExperience(index, "job_title", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-5 gap-2 items-end">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">Start</Label>
+                    <Select
+                      value={parseYearMonth(exp.start_date).month}
+                      onValueChange={(month) => updateQuickExperience(index, "start_date", formatYearMonth(month, parseYearMonth(exp.start_date).year))}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="MM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">&nbsp;</Label>
+                    <Select
+                      value={parseYearMonth(exp.start_date).year}
+                      onValueChange={(year) => updateQuickExperience(index, "start_date", formatYearMonth(parseYearMonth(exp.start_date).month, year))}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="YYYY" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {YEARS.map((y) => (
+                          <SelectItem key={y} value={y}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">End</Label>
+                    <Select
+                      value={parseYearMonth(exp.end_date).month}
+                      onValueChange={(month) => updateQuickExperience(index, "end_date", formatYearMonth(month, parseYearMonth(exp.end_date).year))}
+                      disabled={exp.is_current}
+                    >
+                      <SelectTrigger className={`h-9 ${exp.is_current ? "opacity-50" : ""}`}>
+                        <SelectValue placeholder="MM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">&nbsp;</Label>
+                    <Select
+                      value={parseYearMonth(exp.end_date).year}
+                      onValueChange={(year) => updateQuickExperience(index, "end_date", formatYearMonth(parseYearMonth(exp.end_date).month, year))}
+                      disabled={exp.is_current}
+                    >
+                      <SelectTrigger className={`h-9 ${exp.is_current ? "opacity-50" : ""}`}>
+                        <SelectValue placeholder="YYYY" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {YEARS.map((y) => (
+                          <SelectItem key={y} value={y}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="pb-1">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={exp.is_current}
+                        onChange={(e) => updateQuickExperience(index, "is_current", e.target.checked)}
+                        className="rounded"
+                      />
+                      Current
+                    </label>
+                  </div>
                 </div>
               </div>
             ))}
@@ -556,21 +760,40 @@ export default function JourneyPage() {
       ) : (
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-slate-200" />
+          <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-slate-200" />
 
           <div className="space-y-6">
             {experiences.map((experience, index) => (
               <div key={experience.id} className="relative flex gap-6">
-                {/* Timeline dot */}
-                <div
-                  className={`relative z-10 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white shadow-sm ${
-                    experience.is_current
-                      ? "bg-green-100 text-green-600"
-                      : "bg-blue-100 text-blue-600"
-                  }`}
-                >
-                  <Briefcase className="h-6 w-6" />
-                </div>
+                {/* Timeline dot with company logo */}
+                {(() => {
+                  const logoUrl = getCompanyLogoUrl(experience.company_website);
+                  const showLogo = logoUrl && !failedLogos.has(experience.id);
+                  return (
+                    <div
+                      className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-lg border shadow-sm overflow-hidden ${
+                        showLogo
+                          ? "bg-white border-slate-200"
+                          : experience.is_current
+                          ? "bg-green-100 text-green-600 border-green-200"
+                          : "bg-blue-100 text-blue-600 border-blue-200"
+                      }`}
+                    >
+                      {showLogo ? (
+                        <img
+                          src={logoUrl}
+                          alt={`${experience.company_name} logo`}
+                          className="h-6 w-6 object-contain"
+                          onError={() => {
+                            setFailedLogos(prev => new Set(prev).add(experience.id));
+                          }}
+                        />
+                      ) : (
+                        <Briefcase className="h-4 w-4" />
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Content card */}
                 <Card className="flex-1">

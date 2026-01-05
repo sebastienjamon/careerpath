@@ -33,6 +33,11 @@ import {
   Edit2,
   Trash2,
   ChevronRight,
+  Paperclip,
+  FileText,
+  Upload,
+  X,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -41,6 +46,7 @@ interface RecruitmentProcess {
   id: string;
   user_id: string;
   company_name: string;
+  company_website: string | null;
   job_title: string;
   job_url: string | null;
   status: 'upcoming' | 'in_progress' | 'completed' | 'rejected' | 'offer_received' | 'accepted';
@@ -49,6 +55,37 @@ interface RecruitmentProcess {
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Extract domain from URL or domain string
+const extractDomain = (input: string | null): string | null => {
+  if (!input) return null;
+  try {
+    if (!input.includes('/') && input.includes('.')) {
+      return input.toLowerCase().replace(/^www\./, '');
+    }
+    const url = new URL(input.startsWith('http') ? input : `https://${input}`);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+};
+
+// Get company logo URL
+const getCompanyLogoUrl = (website: string | null): string | null => {
+  const domain = extractDomain(website);
+  if (!domain) return null;
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+};
+
+interface Attachment {
+  id: string;
+  process_id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  file_url: string;
+  created_at: string;
 }
 
 const STATUS_OPTIONS = [
@@ -74,9 +111,13 @@ export default function ProcessesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProcess, setEditingProcess] = useState<RecruitmentProcess | null>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [expandedProcess, setExpandedProcess] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<Record<string, Attachment[]>>({});
+  const [isUploading, setIsUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     company_name: "",
+    company_website: "",
     job_title: "",
     job_url: "",
     status: "upcoming" as RecruitmentProcess["status"],
@@ -113,6 +154,7 @@ export default function ProcessesPage() {
     const processData = {
       user_id: user.id,
       company_name: formData.company_name,
+      company_website: formData.company_website || null,
       job_title: formData.job_title,
       job_url: formData.job_url || null,
       status: formData.status,
@@ -151,6 +193,7 @@ export default function ProcessesPage() {
     setEditingProcess(process);
     setFormData({
       company_name: process.company_name,
+      company_website: process.company_website || "",
       job_title: process.job_title,
       job_url: process.job_url || "",
       status: process.status,
@@ -193,6 +236,7 @@ export default function ProcessesPage() {
   const resetForm = () => {
     setFormData({
       company_name: "",
+      company_website: "",
       job_title: "",
       job_url: "",
       status: "upcoming",
@@ -201,6 +245,81 @@ export default function ProcessesPage() {
       notes: "",
     });
     setEditingProcess(null);
+  };
+
+  const fetchAttachments = async (processId: string) => {
+    const { data, error } = await supabase
+      .from("process_attachments")
+      .select("*")
+      .eq("process_id", processId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setAttachments(prev => ({ ...prev, [processId]: data }));
+    }
+  };
+
+  const handleFileUpload = async (processId: string, file: File) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("processId", processId);
+
+      const response = await fetch("/api/attachments/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Upload failed");
+      }
+
+      toast.success("File uploaded successfully");
+      fetchAttachments(processId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to upload file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string, processId: string) => {
+    if (!confirm("Delete this attachment?")) return;
+
+    try {
+      const response = await fetch(`/api/attachments/${attachmentId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete");
+      }
+
+      toast.success("Attachment deleted");
+      fetchAttachments(processId);
+    } catch (error) {
+      toast.error("Failed to delete attachment");
+    }
+  };
+
+  const toggleExpand = (processId: string) => {
+    if (expandedProcess === processId) {
+      setExpandedProcess(null);
+    } else {
+      setExpandedProcess(processId);
+      if (!attachments[processId]) {
+        fetchAttachments(processId);
+      }
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   const getStatusBadge = (status: string) => {
@@ -258,16 +377,41 @@ export default function ProcessesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="job_title">Job Title</Label>
-                  <Input
-                    id="job_title"
-                    value={formData.job_title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, job_title: e.target.value })
-                    }
-                    required
-                  />
+                  <Label htmlFor="company_website">Company Website (for logo)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="company_website"
+                      value={formData.company_website}
+                      onChange={(e) =>
+                        setFormData({ ...formData, company_website: e.target.value })
+                      }
+                      placeholder="figma.com"
+                      className="flex-1"
+                    />
+                    {formData.company_website && getCompanyLogoUrl(formData.company_website) && (
+                      <div className="h-10 w-10 rounded-lg border flex items-center justify-center bg-white">
+                        <img
+                          src={getCompanyLogoUrl(formData.company_website)!}
+                          alt="Logo preview"
+                          className="h-6 w-6 object-contain"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="job_title">Job Title</Label>
+                <Input
+                  id="job_title"
+                  value={formData.job_title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, job_title: e.target.value })
+                  }
+                  required
+                />
               </div>
 
               <div className="space-y-2">
@@ -404,8 +548,21 @@ export default function ProcessesPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center">
-                          <Building2 className="h-6 w-6 text-slate-600" />
+                        <div className={`h-10 w-10 rounded-lg border shadow-sm flex items-center justify-center overflow-hidden ${
+                          process.company_website ? "bg-white border-slate-200" : "bg-slate-100 border-slate-200"
+                        }`}>
+                          {process.company_website && getCompanyLogoUrl(process.company_website) ? (
+                            <img
+                              src={getCompanyLogoUrl(process.company_website)!}
+                              alt={`${process.company_name} logo`}
+                              className="h-6 w-6 object-contain"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <Building2 className={`h-5 w-5 text-slate-500 ${process.company_website ? 'hidden' : ''}`} />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
@@ -470,6 +627,14 @@ export default function ProcessesPage() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleExpand(process.id)}
+                          className={expandedProcess === process.id ? "bg-slate-100" : ""}
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </Button>
                         <Link href={`/processes/${process.id}`}>
                           <Button variant="ghost" size="icon">
                             <ChevronRight className="h-4 w-4" />
@@ -477,6 +642,85 @@ export default function ProcessesPage() {
                         </Link>
                       </div>
                     </div>
+
+                    {/* Attachments Section */}
+                    {expandedProcess === process.id && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                            <Paperclip className="h-4 w-4" />
+                            Attachments
+                          </h4>
+                          <label className="cursor-pointer">
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handleFileUpload(process.id, file);
+                                  e.target.value = "";
+                                }
+                              }}
+                              disabled={isUploading}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              disabled={isUploading}
+                              asChild
+                            >
+                              <span>
+                                {isUploading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Upload className="h-4 w-4" />
+                                )}
+                                Upload File
+                              </span>
+                            </Button>
+                          </label>
+                        </div>
+
+                        {attachments[process.id]?.length > 0 ? (
+                          <div className="space-y-2">
+                            {attachments[process.id].map((attachment) => (
+                              <div
+                                key={attachment.id}
+                                className="flex items-center justify-between p-2 bg-slate-50 rounded-lg"
+                              >
+                                <a
+                                  href={attachment.file_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-sm text-slate-700 hover:text-blue-600"
+                                >
+                                  <FileText className="h-4 w-4 text-slate-400" />
+                                  <span className="truncate max-w-[200px]">{attachment.file_name}</span>
+                                  <span className="text-xs text-slate-400">
+                                    ({formatFileSize(attachment.file_size)})
+                                  </span>
+                                </a>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteAttachment(attachment.id, process.id)}
+                                  className="h-8 w-8 p-0 text-slate-400 hover:text-red-600"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-500 text-center py-4">
+                            No attachments yet. Upload documents like NDAs, offer letters, or notes.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

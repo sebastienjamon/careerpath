@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Linkedin, Bell, Loader2, CheckCircle2, ExternalLink, Briefcase, ArrowRight } from "lucide-react";
+import { User, Linkedin, Bell, Loader2, CheckCircle2, ExternalLink, Briefcase, ArrowRight, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -30,6 +30,8 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [isDisconnectingCalendar, setIsDisconnectingCalendar] = useState(false);
   const [user, setUser] = useState<{
     id: string;
     email: string;
@@ -41,21 +43,39 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchUser();
+    checkCalendarConnection();
 
     // Check for LinkedIn connection status in URL
     const linkedinStatus = searchParams.get("linkedin");
+    const calendarStatus = searchParams.get("calendar");
     const error = searchParams.get("error");
 
     if (linkedinStatus === "connected") {
       toast.success("LinkedIn account connected successfully!");
-      // Clean up URL
+      window.history.replaceState({}, "", "/settings");
+    } else if (calendarStatus === "connected") {
+      toast.success("Google Calendar connected successfully!");
+      setIsCalendarConnected(true);
       window.history.replaceState({}, "", "/settings");
     } else if (error) {
       const message = searchParams.get("message");
-      toast.error(message || `LinkedIn connection failed: ${error}`);
+      toast.error(message || `Connection failed: ${error}`);
       window.history.replaceState({}, "", "/settings");
     }
   }, [searchParams]);
+
+  const checkCalendarConnection = async () => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+
+    const { data } = await supabase
+      .from("google_calendar_tokens")
+      .select("id")
+      .eq("user_id", authUser.id)
+      .single();
+
+    setIsCalendarConnected(!!data);
+  };
 
   const fetchUser = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -125,6 +145,32 @@ export default function SettingsPage() {
     } else {
       toast.success("LinkedIn disconnected");
       setUser({ ...user, linkedin_profile_url: "", linkedin_data: null });
+    }
+  };
+
+  const handleConnectCalendar = () => {
+    window.location.href = "/api/auth/google-calendar";
+  };
+
+  const handleDisconnectCalendar = async () => {
+    if (!confirm("Are you sure you want to disconnect Google Calendar?")) return;
+
+    setIsDisconnectingCalendar(true);
+    try {
+      const response = await fetch("/api/calendar/disconnect", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to disconnect");
+      }
+
+      toast.success("Google Calendar disconnected");
+      setIsCalendarConnected(false);
+    } catch (error) {
+      toast.error("Failed to disconnect Google Calendar");
+    } finally {
+      setIsDisconnectingCalendar(false);
     }
   };
 
@@ -332,6 +378,64 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <Button onClick={handleConnectLinkedIn}>Connect</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Google Calendar Integration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Google Calendar Integration</CardTitle>
+              <CardDescription>
+                Connect your Google Calendar to import interview events
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isCalendarConnected ? (
+                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-white border flex items-center justify-center">
+                      <Calendar className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-slate-900">Google Calendar</h3>
+                        <Badge className="bg-green-100 text-green-700 gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Connected
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-slate-500">
+                        Import events to your interview steps
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDisconnectCalendar}
+                    disabled={isDisconnectingCalendar}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    {isDisconnectingCalendar && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-white border flex items-center justify-center">
+                      <Calendar className="h-6 w-6 text-slate-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-slate-900">Google Calendar</h3>
+                      <p className="text-sm text-slate-500">
+                        Link calendar events to interview steps
+                      </p>
+                    </div>
+                  </div>
+                  <Button onClick={handleConnectCalendar}>Connect</Button>
                 </div>
               )}
             </CardContent>
