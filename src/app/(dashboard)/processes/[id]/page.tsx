@@ -54,6 +54,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import { EventPicker } from "@/components/calendar/event-picker";
 
 interface RecruitmentProcess {
@@ -1065,7 +1066,9 @@ export default function ProcessDetailPage() {
                               </div>
                               {step.ai_recommendations ? (
                                 <div className="space-y-2">
-                                  <p className="text-sm text-purple-900 whitespace-pre-wrap">{step.ai_recommendations}</p>
+                                  <div className="text-sm text-purple-900 prose prose-sm prose-purple max-w-none [&>ul]:list-disc [&>ul]:pl-4 [&>ul]:space-y-1 [&>ul>li]:text-purple-900 [&>ul>li>ul]:list-disc [&>ul>li>ul]:pl-4 [&>ul>li>ul]:mt-1 [&>p]:mb-2 [&>strong]:font-semibold">
+                                    <ReactMarkdown>{step.ai_recommendations}</ReactMarkdown>
+                                  </div>
                                   {step.ai_recommendations_updated_at && (
                                     <p className="text-xs text-purple-500">
                                       Last updated: {new Date(step.ai_recommendations_updated_at).toLocaleString()}
