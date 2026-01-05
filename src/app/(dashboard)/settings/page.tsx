@@ -28,6 +28,7 @@ interface LinkedInData {
 export default function SettingsPage() {
   const supabase = createClient();
   const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "profile");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
@@ -45,6 +46,12 @@ export default function SettingsPage() {
     fetchUser();
     checkCalendarConnection();
 
+    // Handle tab from URL
+    const tabParam = searchParams.get("tab");
+    if (tabParam && ["profile", "integrations", "notifications"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+
     // Check for LinkedIn connection status in URL
     const linkedinStatus = searchParams.get("linkedin");
     const calendarStatus = searchParams.get("calendar");
@@ -52,11 +59,13 @@ export default function SettingsPage() {
 
     if (linkedinStatus === "connected") {
       toast.success("LinkedIn account connected successfully!");
-      window.history.replaceState({}, "", "/settings");
+      setActiveTab("integrations");
+      window.history.replaceState({}, "", "/settings?tab=integrations");
     } else if (calendarStatus === "connected") {
       toast.success("Google Calendar connected successfully!");
       setIsCalendarConnected(true);
-      window.history.replaceState({}, "", "/settings");
+      setActiveTab("integrations");
+      window.history.replaceState({}, "", "/settings?tab=integrations");
     } else if (error) {
       const message = searchParams.get("message");
       toast.error(message || `Connection failed: ${error}`);
@@ -197,7 +206,7 @@ export default function SettingsPage() {
         <p className="text-slate-600 mt-1">Manage your account preferences</p>
       </div>
 
-      <Tabs defaultValue="profile">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="profile" className="gap-2">
             <User className="h-4 w-4" />
