@@ -12,10 +12,15 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const processId = formData.get("processId") as string;
+    const processId = formData.get("processId") as string | null;
+    const stepId = formData.get("stepId") as string | null;
 
-    if (!file || !processId) {
-      return NextResponse.json({ error: "File and processId are required" }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ error: "File is required" }, { status: 400 });
+    }
+
+    if (!processId && !stepId) {
+      return NextResponse.json({ error: "processId or stepId is required" }, { status: 400 });
     }
 
     // Validate file type (allow common document types)
@@ -23,6 +28,10 @@ export async function POST(request: NextRequest) {
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       "image/png",
       "image/jpeg",
       "text/plain",
@@ -39,10 +48,11 @@ export async function POST(request: NextRequest) {
 
     // Generate unique file path
     const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}/${processId}/${Date.now()}.${fileExt}`;
+    const pathPrefix = stepId ? `steps/${stepId}` : `processes/${processId}`;
+    const fileName = `${user.id}/${pathPrefix}/${Date.now()}.${fileExt}`;
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("process-documents")
       .upload(fileName, file, {
         contentType: file.type,
@@ -59,11 +69,14 @@ export async function POST(request: NextRequest) {
       .from("process-documents")
       .getPublicUrl(fileName);
 
-    // Save attachment record
+    // Save attachment record to appropriate table
+    const table = stepId ? "step_attachments" : "process_attachments";
+    const foreignKey = stepId ? { step_id: stepId } : { process_id: processId };
+
     const { data: attachment, error: dbError } = await supabase
-      .from("process_attachments")
+      .from(table)
       .insert({
-        process_id: processId,
+        ...foreignKey,
         user_id: user.id,
         file_name: file.name,
         file_type: file.type,

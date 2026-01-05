@@ -44,6 +44,10 @@ import {
   User,
   Mail,
   Linkedin,
+  Video,
+  FileText,
+  Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -73,8 +77,19 @@ interface ProcessStep {
   objectives: string[];
   notes: string | null;
   outcome: string | null;
+  meeting_url: string | null;
   google_calendar_event_id: string | null;
   google_calendar_event_summary: string | null;
+  created_at: string;
+}
+
+interface StepAttachment {
+  id: string;
+  step_id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  file_url: string;
   created_at: string;
 }
 
@@ -140,6 +155,7 @@ export default function ProcessDetailPage() {
   const [process, setProcess] = useState<RecruitmentProcess | null>(null);
   const [steps, setSteps] = useState<ProcessStep[]>([]);
   const [contacts, setContacts] = useState<Record<string, StepContact[]>>({});
+  const [attachments, setAttachments] = useState<Record<string, StepAttachment[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isStepDialogOpen, setIsStepDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
@@ -150,6 +166,7 @@ export default function ProcessDetailPage() {
   const [eventPickerStepId, setEventPickerStepId] = useState<string | null>(null);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isImportMode, setIsImportMode] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [stepFormData, setStepFormData] = useState({
     step_type: "phone_screen" as ProcessStep["step_type"],
@@ -159,6 +176,7 @@ export default function ProcessDetailPage() {
     objectives: "",
     notes: "",
     outcome: "",
+    meeting_url: "",
   });
 
   const [contactFormData, setContactFormData] = useState({
@@ -210,8 +228,11 @@ export default function ProcessDetailPage() {
 
     if (!error && data) {
       setSteps(data);
-      // Fetch contacts for each step
-      data.forEach(step => fetchContacts(step.id));
+      // Fetch contacts and attachments for each step
+      data.forEach(step => {
+        fetchContacts(step.id);
+        fetchAttachments(step.id);
+      });
     }
   };
 
@@ -223,6 +244,18 @@ export default function ProcessDetailPage() {
 
     if (!error && data) {
       setContacts(prev => ({ ...prev, [stepId]: data }));
+    }
+  };
+
+  const fetchAttachments = async (stepId: string) => {
+    const { data, error } = await supabase
+      .from("step_attachments")
+      .select("*")
+      .eq("step_id", stepId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setAttachments(prev => ({ ...prev, [stepId]: data }));
     }
   };
 
@@ -249,6 +282,7 @@ export default function ProcessDetailPage() {
       objectives: stepFormData.objectives ? stepFormData.objectives.split("\n").filter(o => o.trim()) : [],
       notes: stepFormData.notes || null,
       outcome: stepFormData.outcome || null,
+      meeting_url: stepFormData.meeting_url || null,
     };
 
     if (editingStep) {
@@ -371,6 +405,7 @@ export default function ProcessDetailPage() {
       objectives: step.objectives?.join("\n") || "",
       notes: step.notes || "",
       outcome: step.outcome || "",
+      meeting_url: step.meeting_url || "",
     });
     setIsStepDialogOpen(true);
   };
@@ -503,6 +538,7 @@ export default function ProcessDetailPage() {
       objectives: "",
       notes: "",
       outcome: "",
+      meeting_url: "",
     });
     setEditingStep(null);
   };
@@ -518,6 +554,65 @@ export default function ProcessDetailPage() {
     });
     setEditingContact(null);
     setSelectedStepId(null);
+  };
+
+  const handleFileUpload = async (stepId: string, file: File) => {
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("stepId", stepId);
+
+    try {
+      const response = await fetch("/api/attachments/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.error || "Failed to upload file");
+        return;
+      }
+
+      toast.success("File uploaded");
+      fetchAttachments(stepId);
+    } catch {
+      toast.error("Failed to upload file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachment: StepAttachment) => {
+    if (!confirm("Delete this file?")) return;
+
+    const { error } = await supabase
+      .from("step_attachments")
+      .delete()
+      .eq("id", attachment.id);
+
+    if (error) {
+      toast.error("Failed to delete file");
+      return;
+    }
+
+    toast.success("File deleted");
+    fetchAttachments(attachment.step_id);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.includes("pdf")) return "PDF";
+    if (fileType.includes("word") || fileType.includes("document")) return "DOC";
+    if (fileType.includes("sheet") || fileType.includes("excel")) return "XLS";
+    if (fileType.includes("presentation") || fileType.includes("powerpoint")) return "PPT";
+    if (fileType.includes("image")) return "IMG";
+    return "FILE";
   };
 
   const getStepIcon = (type: ProcessStep["step_type"]) => {
@@ -707,6 +802,21 @@ export default function ProcessDetailPage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Meeting Link</Label>
+                  <div className="relative">
+                    <Video className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      value={stepFormData.meeting_url}
+                      onChange={(e) =>
+                        setStepFormData({ ...stepFormData, meeting_url: e.target.value })
+                      }
+                      placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Objectives (one per line)</Label>
                   <Textarea
                     value={stepFormData.objectives}
@@ -794,6 +904,7 @@ export default function ProcessDetailPage() {
               {steps.map((step, index) => {
                 const StepIcon = getStepIcon(step.step_type);
                 const stepContacts = contacts[step.id] || [];
+                const stepAttachments = attachments[step.id] || [];
 
                 return (
                   <div key={step.id} className="relative pl-14">
@@ -839,6 +950,19 @@ export default function ProcessDetailPage() {
                                   Unlink
                                 </button>
                               </div>
+                            )}
+
+                            {step.meeting_url && (
+                              <a
+                                href={step.meeting_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium transition-colors"
+                              >
+                                <Video className="h-4 w-4" />
+                                Join Meeting
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
                             )}
 
                             {step.objectives && step.objectives.length > 0 && (
@@ -929,6 +1053,59 @@ export default function ProcessDetailPage() {
                                           <Trash2 className="h-3 w-3" />
                                         </Button>
                                       </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Attachments Section */}
+                            <div className="mt-4">
+                              <div className="flex items-center gap-2 text-sm text-slate-600">
+                                <FileText className="h-4 w-4" />
+                                <span>{stepAttachments.length} file{stepAttachments.length !== 1 ? 's' : ''}</span>
+                                <label className="h-5 w-5 rounded-full bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors cursor-pointer">
+                                  <Upload className="h-3 w-3" />
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleFileUpload(step.id, file);
+                                      e.target.value = '';
+                                    }}
+                                    disabled={isUploading}
+                                  />
+                                </label>
+                              </div>
+
+                              {stepAttachments.length > 0 && (
+                                <div className="mt-3 space-y-2">
+                                  {stepAttachments.map(attachment => (
+                                    <div key={attachment.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                                      <a
+                                        href={attachment.file_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 flex-1 hover:text-blue-600 transition-colors"
+                                      >
+                                        <div className="h-8 w-8 rounded bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600">
+                                          {getFileIcon(attachment.file_type)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-slate-900 truncate">{attachment.file_name}</p>
+                                          <p className="text-xs text-slate-500">{formatFileSize(attachment.file_size)}</p>
+                                        </div>
+                                      </a>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteAttachment(attachment)}
+                                        className="text-slate-400 hover:text-red-600"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
                                     </div>
                                   ))}
                                 </div>
