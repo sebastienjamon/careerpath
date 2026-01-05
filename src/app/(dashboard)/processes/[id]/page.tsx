@@ -51,6 +51,8 @@ import {
   Sparkles,
   RefreshCw,
   BookOpen,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -186,6 +188,8 @@ export default function ProcessDetailPage() {
     meeting_url: "",
   });
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState<string | null>(null);
+  const [expandedRecommendations, setExpandedRecommendations] = useState<Record<string, boolean>>({});
+  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
 
   const [contactFormData, setContactFormData] = useState({
     name: "",
@@ -972,19 +976,34 @@ export default function ProcessDetailPage() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3">
-                              <h3 className="font-semibold text-slate-900">
-                                Step {step.step_number}: {STEP_TYPE_OPTIONS.find(o => o.value === step.step_type)?.label}
-                              </h3>
-                              {getStatusBadge(step.status)}
-                            </div>
+                            {/* Clickable Header */}
+                            <button
+                              onClick={() => setExpandedSteps(prev => ({ ...prev, [step.id]: !prev[step.id] }))}
+                              className="w-full text-left"
+                            >
+                              <div className="flex items-center gap-3">
+                                <h3 className="font-semibold text-slate-900">
+                                  Step {step.step_number}: {STEP_TYPE_OPTIONS.find(o => o.value === step.step_type)?.label}
+                                </h3>
+                                {getStatusBadge(step.status)}
+                                {expandedSteps[step.id] ? (
+                                  <ChevronUp className="h-4 w-4 text-slate-400" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                                )}
+                              </div>
 
-                            {step.scheduled_date && (
-                              <p className="text-sm text-slate-600 mt-1 flex items-center gap-1">
-                                <Calendar className="h-4 w-4" />
-                                {new Date(step.scheduled_date).toLocaleString()}
-                              </p>
-                            )}
+                              {step.scheduled_date && (
+                                <p className="text-sm text-slate-600 mt-1 flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  {new Date(step.scheduled_date).toLocaleString()}
+                                </p>
+                              )}
+                            </button>
+
+                            {/* Collapsible Content */}
+                            {expandedSteps[step.id] && (
+                              <div className="mt-3">
 
                             {step.google_calendar_event_id && (
                               <div className="flex items-center gap-2 mt-2">
@@ -1066,9 +1085,28 @@ export default function ProcessDetailPage() {
                               </div>
                               {step.ai_recommendations ? (
                                 <div className="space-y-2">
-                                  <div className="text-sm text-purple-900 prose prose-sm prose-purple max-w-none [&>ul]:list-disc [&>ul]:pl-4 [&>ul]:space-y-1 [&>ul>li]:text-purple-900 [&>ul>li>ul]:list-disc [&>ul>li>ul]:pl-4 [&>ul>li>ul]:mt-1 [&>p]:mb-2 [&>strong]:font-semibold">
+                                  <div className={`text-sm text-purple-900 prose prose-sm prose-purple max-w-none [&>ul]:list-disc [&>ul]:pl-4 [&>ul]:space-y-1 [&>ul>li]:text-purple-900 [&>ul>li>ul]:list-disc [&>ul>li>ul]:pl-4 [&>ul>li>ul]:mt-1 [&>p]:mb-2 [&>strong]:font-semibold ${!expandedRecommendations[step.id] ? "max-h-24 overflow-hidden relative" : ""}`}>
                                     <ReactMarkdown>{step.ai_recommendations}</ReactMarkdown>
+                                    {!expandedRecommendations[step.id] && (
+                                      <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-purple-50 to-transparent" />
+                                    )}
                                   </div>
+                                  <button
+                                    onClick={() => setExpandedRecommendations(prev => ({ ...prev, [step.id]: !prev[step.id] }))}
+                                    className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium"
+                                  >
+                                    {expandedRecommendations[step.id] ? (
+                                      <>
+                                        <ChevronUp className="h-3 w-3" />
+                                        Show less
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown className="h-3 w-3" />
+                                        Show more
+                                      </>
+                                    )}
+                                  </button>
                                   {step.ai_recommendations_updated_at && (
                                     <p className="text-xs text-purple-500">
                                       Last updated: {new Date(step.ai_recommendations_updated_at).toLocaleString()}
@@ -1226,6 +1264,8 @@ export default function ProcessDetailPage() {
                                 </div>
                               )}
                             </div>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-1">
