@@ -148,6 +148,8 @@ export default function ProcessDetailPage() {
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [isEventPickerOpen, setIsEventPickerOpen] = useState(false);
   const [eventPickerStepId, setEventPickerStepId] = useState<string | null>(null);
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [isImportMode, setIsImportMode] = useState(false);
 
   const [stepFormData, setStepFormData] = useState({
     step_type: "phone_screen" as ProcessStep["step_type"],
@@ -170,7 +172,16 @@ export default function ProcessDetailPage() {
   useEffect(() => {
     fetchProcess();
     fetchSteps();
+    checkCalendarConnection();
   }, [processId]);
+
+  const checkCalendarConnection = async () => {
+    const { data } = await supabase
+      .from("google_calendar_tokens")
+      .select("id")
+      .single();
+    setIsCalendarConnected(!!data);
+  };
 
   const fetchProcess = async () => {
     const { data, error } = await supabase
@@ -369,27 +380,52 @@ export default function ProcessDetailPage() {
   };
 
   const handleCalendarEventSelect = async (event: CalendarEvent) => {
-    if (!eventPickerStepId) return;
-
     const scheduledDate = event.start.dateTime || event.start.date;
 
-    const { error } = await supabase
-      .from("process_steps")
-      .update({
+    if (isImportMode) {
+      // Create a new step from the calendar event
+      const stepData = {
+        process_id: processId,
+        step_number: steps.length + 1,
+        step_type: "other" as const,
         scheduled_date: scheduledDate,
+        status: "upcoming" as const,
+        objectives: [],
+        notes: event.summary || null,
         google_calendar_event_id: event.id,
         google_calendar_event_summary: event.summary,
-      })
-      .eq("id", eventPickerStepId);
+      };
 
-    if (error) {
-      toast.error("Failed to link calendar event");
-      return;
+      const { error } = await supabase.from("process_steps").insert(stepData);
+
+      if (error) {
+        toast.error("Failed to create step from calendar");
+        return;
+      }
+
+      toast.success("Step created from calendar event!");
+      setIsImportMode(false);
+    } else if (eventPickerStepId) {
+      // Link to existing step
+      const { error } = await supabase
+        .from("process_steps")
+        .update({
+          scheduled_date: scheduledDate,
+          google_calendar_event_id: event.id,
+          google_calendar_event_summary: event.summary,
+        })
+        .eq("id", eventPickerStepId);
+
+      if (error) {
+        toast.error("Failed to link calendar event");
+        return;
+      }
+
+      toast.success("Calendar event linked!");
+      setEventPickerStepId(null);
     }
 
-    toast.success("Calendar event linked!");
     fetchSteps();
-    setEventPickerStepId(null);
   };
 
   const handleUnlinkCalendarEvent = async (stepId: string) => {
@@ -523,16 +559,28 @@ export default function ProcessDetailPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-slate-900">Interview Steps</h2>
-          <Dialog open={isStepDialogOpen} onOpenChange={(open) => {
-            setIsStepDialogOpen(open);
-            if (!open) resetStepForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Step
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                setIsImportMode(true);
+                setIsEventPickerOpen(true);
+              }}
+            >
+              <Calendar className="h-4 w-4" />
+              Import from Calendar
+            </Button>
+            <Dialog open={isStepDialogOpen} onOpenChange={(open) => {
+              setIsStepDialogOpen(open);
+              if (!open) resetStepForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Step
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>
@@ -658,6 +706,7 @@ export default function ProcessDetailPage() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {steps.length === 0 ? (
@@ -668,10 +717,23 @@ export default function ProcessDetailPage() {
               <p className="text-slate-500 mt-1 mb-4">
                 Add interview steps to track your progress
               </p>
-              <Button onClick={() => setIsStepDialogOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add First Step
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsImportMode(true);
+                    setIsEventPickerOpen(true);
+                  }}
+                  className="gap-2"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Import from Calendar
+                </Button>
+                <Button onClick={() => setIsStepDialogOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add First Step
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
