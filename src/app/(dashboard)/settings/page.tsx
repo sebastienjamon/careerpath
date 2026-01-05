@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Linkedin, Bell, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
+import { User, Linkedin, Bell, Loader2, CheckCircle2, ExternalLink, Briefcase, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 interface LinkedInData {
   linkedin_id: string;
@@ -246,7 +247,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>LinkedIn Integration</CardTitle>
               <CardDescription>
-                Connect your LinkedIn account to import your profile data
+                Connect your LinkedIn account for profile verification
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -326,13 +327,39 @@ export default function SettingsPage() {
                     <div>
                       <h3 className="font-medium text-slate-900">LinkedIn</h3>
                       <p className="text-sm text-slate-500">
-                        Import your profile data and keep it in sync
+                        Verify your identity with LinkedIn (name, email, photo)
                       </p>
                     </div>
                   </div>
                   <Button onClick={handleConnectLinkedIn}>Connect</Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Add Work History Card */}
+          <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5" />
+                Import Work History
+              </CardTitle>
+              <CardDescription>
+                Add your professional experience from LinkedIn to your career timeline
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-600">
+                  Use our Quick Add feature to rapidly enter your work history while referencing your LinkedIn profile.
+                </p>
+                <Link href="/journey">
+                  <Button className="gap-2">
+                    Go to Career Journey
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

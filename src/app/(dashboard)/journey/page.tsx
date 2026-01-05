@@ -16,8 +16,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2 } from "lucide-react";
+import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Linkedin, Sparkles, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 interface CareerExperience {
   id: string;
@@ -39,6 +40,16 @@ export default function JourneyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExperience, setEditingExperience] = useState<CareerExperience | null>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddStep, setQuickAddStep] = useState(0);
+  const [quickAddExperiences, setQuickAddExperiences] = useState<Array<{
+    company_name: string;
+    job_title: string;
+    start_date: string;
+    end_date: string;
+    is_current: boolean;
+  }>>([{ company_name: "", job_title: "", start_date: "", end_date: "", is_current: false }]);
 
   const [formData, setFormData] = useState({
     company_name: "",
@@ -52,7 +63,97 @@ export default function JourneyPage() {
 
   useEffect(() => {
     fetchExperiences();
+    fetchLinkedinUrl();
   }, []);
+
+  const fetchLinkedinUrl = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("users")
+      .select("linkedin_profile_url")
+      .eq("id", user.id)
+      .single();
+
+    if (data?.linkedin_profile_url) {
+      setLinkedinUrl(data.linkedin_profile_url);
+    }
+  };
+
+  const saveLinkedinUrl = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("users")
+      .update({ linkedin_profile_url: linkedinUrl })
+      .eq("id", user.id);
+
+    if (error) {
+      toast.error("Failed to save LinkedIn URL");
+      return;
+    }
+
+    toast.success("LinkedIn profile saved!");
+    setIsQuickAddOpen(true);
+  };
+
+  const addQuickExperience = () => {
+    setQuickAddExperiences([
+      ...quickAddExperiences,
+      { company_name: "", job_title: "", start_date: "", end_date: "", is_current: false }
+    ]);
+  };
+
+  const updateQuickExperience = (index: number, field: string, value: string | boolean) => {
+    const updated = [...quickAddExperiences];
+    updated[index] = { ...updated[index], [field]: value };
+    setQuickAddExperiences(updated);
+  };
+
+  const removeQuickExperience = (index: number) => {
+    if (quickAddExperiences.length > 1) {
+      setQuickAddExperiences(quickAddExperiences.filter((_, i) => i !== index));
+    }
+  };
+
+  const saveQuickExperiences = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const validExperiences = quickAddExperiences.filter(
+      exp => exp.company_name && exp.job_title && exp.start_date
+    );
+
+    if (validExperiences.length === 0) {
+      toast.error("Please add at least one experience with company, title, and start date");
+      return;
+    }
+
+    const experiencesToInsert = validExperiences.map(exp => ({
+      user_id: user.id,
+      company_name: exp.company_name,
+      job_title: exp.job_title,
+      start_date: exp.start_date,
+      end_date: exp.is_current ? null : exp.end_date || null,
+      is_current: exp.is_current,
+      skills: [],
+      description: null,
+    }));
+
+    const { error } = await supabase.from("career_experiences").insert(experiencesToInsert);
+
+    if (error) {
+      toast.error("Failed to save experiences");
+      return;
+    }
+
+    toast.success(`Added ${validExperiences.length} experience(s)!`);
+    setIsQuickAddOpen(false);
+    setQuickAddExperiences([{ company_name: "", job_title: "", start_date: "", end_date: "", is_current: false }]);
+    fetchExperiences();
+  };
 
   const fetchExperiences = async () => {
     const { data, error } = await supabase
@@ -167,16 +268,21 @@ export default function JourneyPage() {
           <h1 className="text-2xl font-bold text-slate-900">Career Journey</h1>
           <p className="text-slate-600 mt-1">Track your professional experiences over time</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Experience
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setIsQuickAddOpen(true)}>
+            <Sparkles className="h-4 w-4" />
+            Quick Add
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Experience
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>
@@ -290,7 +396,144 @@ export default function JourneyPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {/* LinkedIn Import Card */}
+      {experiences.length === 0 && !isLoading && (
+        <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-100">
+          <CardContent className="py-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <Linkedin className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <h3 className="font-semibold text-slate-900">Import from LinkedIn</h3>
+                <p className="text-sm text-slate-600">
+                  Add your LinkedIn profile URL and quickly add your work history
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Input
+                  placeholder="linkedin.com/in/yourprofile"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  className="w-full sm:w-64"
+                />
+                <Button onClick={saveLinkedinUrl} disabled={!linkedinUrl} className="gap-2">
+                  <ChevronRight className="h-4 w-4" />
+                  Start
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quick Add Dialog */}
+      <Dialog open={isQuickAddOpen} onOpenChange={setIsQuickAddOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-blue-600" />
+              Quick Add Experiences
+            </DialogTitle>
+            <DialogDescription>
+              Rapidly add multiple work experiences. You can add details later.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {linkedinUrl && (
+              <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
+                <Linkedin className="h-4 w-4 text-blue-600" />
+                <span>Reference your profile:</span>
+                <a
+                  href={linkedinUrl.startsWith("http") ? linkedinUrl : `https://${linkedinUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline truncate max-w-xs"
+                >
+                  {linkedinUrl}
+                </a>
+              </div>
+            )}
+
+            {quickAddExperiences.map((exp, index) => (
+              <div key={index} className="p-4 border rounded-lg space-y-3 bg-white">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-500">Experience {index + 1}</span>
+                  {quickAddExperiences.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeQuickExperience(index)}
+                      className="text-red-600 hover:text-red-700 h-8"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    placeholder="Company name"
+                    value={exp.company_name}
+                    onChange={(e) => updateQuickExperience(index, "company_name", e.target.value)}
+                  />
+                  <Input
+                    placeholder="Job title"
+                    value={exp.job_title}
+                    onChange={(e) => updateQuickExperience(index, "job_title", e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3 items-center">
+                  <Input
+                    type="date"
+                    placeholder="Start date"
+                    value={exp.start_date}
+                    onChange={(e) => updateQuickExperience(index, "start_date", e.target.value)}
+                  />
+                  <Input
+                    type="date"
+                    placeholder="End date"
+                    value={exp.end_date}
+                    onChange={(e) => updateQuickExperience(index, "end_date", e.target.value)}
+                    disabled={exp.is_current}
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={exp.is_current}
+                      onChange={(e) => updateQuickExperience(index, "is_current", e.target.checked)}
+                      className="rounded"
+                    />
+                    Current
+                  </label>
+                </div>
+              </div>
+            ))}
+
+            <Button
+              variant="outline"
+              onClick={addQuickExperience}
+              className="w-full gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Another Experience
+            </Button>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+            <Button variant="outline" onClick={() => setIsQuickAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveQuickExperiences} className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Save All Experiences
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
