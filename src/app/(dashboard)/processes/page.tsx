@@ -32,7 +32,6 @@ import {
   ExternalLink,
   Edit2,
   Trash2,
-  ChevronRight,
   Paperclip,
   FileText,
   Upload,
@@ -547,7 +546,7 @@ export default function ProcessesPage() {
                 <Card key={process.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
+                      <Link href={`/processes/${process.id}`} className="flex items-center gap-4 flex-1 cursor-pointer hover:opacity-80">
                         <div className={`h-10 w-10 rounded-lg border shadow-sm flex items-center justify-center overflow-hidden ${
                           process.company_website ? "bg-white border-slate-200" : "bg-slate-100 border-slate-200"
                         }`}>
@@ -570,14 +569,16 @@ export default function ProcessesPage() {
                               {process.company_name}
                             </h3>
                             {process.job_url && (
-                              <a
-                                href={process.job_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-slate-400 hover:text-slate-600"
+                              <span
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  window.open(process.job_url!, '_blank');
+                                }}
+                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
                               >
                                 <ExternalLink className="h-4 w-4" />
-                              </a>
+                              </span>
                             )}
                           </div>
                           <p className="text-sm text-slate-600">{process.job_title}</p>
@@ -591,7 +592,7 @@ export default function ProcessesPage() {
                             <span className="capitalize">via {process.source}</span>
                           </div>
                         </div>
-                      </div>
+                      </Link>
 
                       <div className="flex items-center gap-3">
                         <Select
@@ -635,11 +636,6 @@ export default function ProcessesPage() {
                         >
                           <Paperclip className="h-4 w-4" />
                         </Button>
-                        <Link href={`/processes/${process.id}`}>
-                          <Button variant="ghost" size="icon">
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </Link>
                       </div>
                     </div>
 
