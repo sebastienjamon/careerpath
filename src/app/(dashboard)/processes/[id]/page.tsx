@@ -48,6 +48,9 @@ import {
   FileText,
   Upload,
   X,
+  MessageSquare,
+  Target,
+  Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -74,7 +77,10 @@ interface ProcessStep {
   step_type: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other';
   scheduled_date: string | null;
   status: 'upcoming' | 'completed' | 'cancelled';
+  description: string | null;
   objectives: string[];
+  role_team_notes: string | null;
+  prepared_questions: string[];
   notes: string | null;
   outcome: string | null;
   meeting_url: string | null;
@@ -173,7 +179,10 @@ export default function ProcessDetailPage() {
     scheduled_date: "",
     scheduled_time: "",
     status: "upcoming" as ProcessStep["status"],
+    description: "",
     objectives: "",
+    role_team_notes: "",
+    prepared_questions: "",
     notes: "",
     outcome: "",
     meeting_url: "",
@@ -279,7 +288,10 @@ export default function ProcessDetailPage() {
       step_type: stepFormData.step_type,
       scheduled_date: scheduledDate,
       status: stepFormData.status,
+      description: stepFormData.description || null,
       objectives: stepFormData.objectives ? stepFormData.objectives.split("\n").filter(o => o.trim()) : [],
+      role_team_notes: stepFormData.role_team_notes || null,
+      prepared_questions: stepFormData.prepared_questions ? stepFormData.prepared_questions.split("\n").filter(q => q.trim()) : [],
       notes: stepFormData.notes || null,
       outcome: stepFormData.outcome || null,
       meeting_url: stepFormData.meeting_url || null,
@@ -402,7 +414,10 @@ export default function ProcessDetailPage() {
       scheduled_date: dateStr,
       scheduled_time: timeStr,
       status: step.status,
+      description: step.description || "",
       objectives: step.objectives?.join("\n") || "",
+      role_team_notes: step.role_team_notes || "",
+      prepared_questions: step.prepared_questions?.join("\n") || "",
       notes: step.notes || "",
       outcome: step.outcome || "",
       meeting_url: step.meeting_url || "",
@@ -535,7 +550,10 @@ export default function ProcessDetailPage() {
       scheduled_date: "",
       scheduled_time: "",
       status: "upcoming",
+      description: "",
       objectives: "",
+      role_team_notes: "",
+      prepared_questions: "",
       notes: "",
       outcome: "",
       meeting_url: "",
@@ -816,26 +834,78 @@ export default function ProcessDetailPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Objectives (one per line)</Label>
-                  <Textarea
-                    value={stepFormData.objectives}
-                    onChange={(e) =>
-                      setStepFormData({ ...stepFormData, objectives: e.target.value })
-                    }
-                    placeholder="e.g., Discuss technical experience&#10;Ask about team culture&#10;Salary expectations"
-                    rows={3}
-                  />
+                {/* Preparation Section */}
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Target className="h-4 w-4 text-blue-600" />
+                    Interview Preparation
+                  </h4>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Interview Purpose</Label>
+                      <Textarea
+                        value={stepFormData.description}
+                        onChange={(e) =>
+                          setStepFormData({ ...stepFormData, description: e.target.value })
+                        }
+                        placeholder="e.g., This interview will offer valuable insights into the role and team, and provide you with opportunities to ask questions."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Key Objectives (one per line)</Label>
+                      <Textarea
+                        value={stepFormData.objectives}
+                        onChange={(e) =>
+                          setStepFormData({ ...stepFormData, objectives: e.target.value })
+                        }
+                        placeholder="e.g., Learn about day-to-day responsibilities&#10;Understand team structure&#10;Discuss growth opportunities"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-amber-500" />
+                        Notes about Role & Team
+                      </Label>
+                      <Textarea
+                        value={stepFormData.role_team_notes}
+                        onChange={(e) =>
+                          setStepFormData({ ...stepFormData, role_team_notes: e.target.value })
+                        }
+                        placeholder="What you've learned about the role, team culture, tech stack, projects..."
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-green-600" />
+                        Questions to Ask (one per line)
+                      </Label>
+                      <Textarea
+                        value={stepFormData.prepared_questions}
+                        onChange={(e) =>
+                          setStepFormData({ ...stepFormData, prepared_questions: e.target.value })
+                        }
+                        placeholder="e.g., What does a typical day look like?&#10;How is the team structured?&#10;What are the biggest challenges?"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Notes</Label>
+                  <Label>Additional Notes</Label>
                   <Textarea
                     value={stepFormData.notes}
                     onChange={(e) =>
                       setStepFormData({ ...stepFormData, notes: e.target.value })
                     }
-                    placeholder="Any preparation notes..."
+                    placeholder="Any other preparation notes..."
                     rows={2}
                   />
                 </div>
@@ -965,24 +1035,69 @@ export default function ProcessDetailPage() {
                               </a>
                             )}
 
-                            {step.objectives && step.objectives.length > 0 && (
-                              <div className="mt-3">
-                                <p className="text-sm font-medium text-slate-700">Objectives:</p>
-                                <ul className="list-disc list-inside text-sm text-slate-600 mt-1">
-                                  {step.objectives.map((obj, i) => (
-                                    <li key={i}>{obj}</li>
-                                  ))}
-                                </ul>
+                            {/* Interview Purpose */}
+                            {step.description && (
+                              <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                <p className="text-sm text-blue-800">{step.description}</p>
+                              </div>
+                            )}
+
+                            {/* Preparation Section */}
+                            {(step.objectives?.length > 0 || step.role_team_notes || step.prepared_questions?.length > 0) && (
+                              <div className="mt-4 space-y-3">
+                                {step.objectives && step.objectives.length > 0 && (
+                                  <div className="p-3 bg-slate-50 rounded-lg">
+                                    <p className="text-sm font-medium text-slate-700 flex items-center gap-2 mb-2">
+                                      <Target className="h-4 w-4 text-blue-600" />
+                                      Key Objectives
+                                    </p>
+                                    <ul className="space-y-1">
+                                      {step.objectives.map((obj, i) => (
+                                        <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                                          <span className="text-blue-500 mt-1">•</span>
+                                          {obj}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {step.role_team_notes && (
+                                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                                    <p className="text-sm font-medium text-amber-800 flex items-center gap-2 mb-2">
+                                      <Lightbulb className="h-4 w-4" />
+                                      Role & Team Notes
+                                    </p>
+                                    <p className="text-sm text-amber-900 whitespace-pre-wrap">{step.role_team_notes}</p>
+                                  </div>
+                                )}
+
+                                {step.prepared_questions && step.prepared_questions.length > 0 && (
+                                  <div className="p-3 bg-green-50 border border-green-100 rounded-lg">
+                                    <p className="text-sm font-medium text-green-800 flex items-center gap-2 mb-2">
+                                      <MessageSquare className="h-4 w-4" />
+                                      Questions to Ask
+                                    </p>
+                                    <ul className="space-y-1">
+                                      {step.prepared_questions.map((q, i) => (
+                                        <li key={i} className="text-sm text-green-900 flex items-start gap-2">
+                                          <span className="text-green-500 mt-1">?</span>
+                                          {q}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
                               </div>
                             )}
 
                             {step.notes && (
-                              <p className="text-sm text-slate-500 mt-2 italic">{step.notes}</p>
+                              <p className="text-sm text-slate-500 mt-3 italic">{step.notes}</p>
                             )}
 
                             {step.outcome && (
-                              <div className="mt-3 p-2 bg-slate-50 rounded">
-                                <p className="text-sm font-medium text-slate-700">Outcome:</p>
+                              <div className="mt-3 p-3 bg-slate-100 rounded-lg">
+                                <p className="text-sm font-medium text-slate-700 mb-1">Outcome:</p>
                                 <p className="text-sm text-slate-600">{step.outcome}</p>
                               </div>
                             )}
