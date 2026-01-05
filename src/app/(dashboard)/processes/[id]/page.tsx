@@ -94,6 +94,7 @@ interface StepContact {
   linkedin_url: string | null;
   email: string | null;
   notes: string | null;
+  photo_url: string | null;
 }
 
 const STEP_TYPE_OPTIONS = [
@@ -167,6 +168,7 @@ export default function ProcessDetailPage() {
     linkedin_url: "",
     email: "",
     notes: "",
+    photo_url: "",
   });
 
   useEffect(() => {
@@ -276,6 +278,34 @@ export default function ProcessDetailPage() {
     fetchSteps();
   };
 
+  const handleLinkedInUrlChange = async (url: string) => {
+    // Auto-parse if it looks like a valid LinkedIn URL
+    const linkedinUrlPattern = /^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/i;
+    const isValidUrl = linkedinUrlPattern.test(url.trim());
+
+    if (isValidUrl) {
+      try {
+        const response = await fetch(`/api/linkedin/profile?url=${encodeURIComponent(url.trim())}`);
+        const data = await response.json();
+
+        if (response.ok && data.name) {
+          // Update both URL and name together
+          setContactFormData(prev => ({
+            ...prev,
+            linkedin_url: url,
+            name: prev.name || data.name,
+          }));
+          return;
+        }
+      } catch {
+        // Fall through to just update URL
+      }
+    }
+
+    // Just update the URL if not valid or fetch failed
+    setContactFormData(prev => ({ ...prev, linkedin_url: url }));
+  };
+
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -288,6 +318,7 @@ export default function ProcessDetailPage() {
       linkedin_url: contactFormData.linkedin_url || null,
       email: contactFormData.email || null,
       notes: contactFormData.notes || null,
+      photo_url: contactFormData.photo_url || null,
     };
 
     if (editingContact) {
@@ -368,6 +399,7 @@ export default function ProcessDetailPage() {
       linkedin_url: contact.linkedin_url || "",
       email: contact.email || "",
       notes: contact.notes || "",
+      photo_url: contact.photo_url || "",
     });
     setIsContactDialogOpen(true);
   };
@@ -483,6 +515,7 @@ export default function ProcessDetailPage() {
       linkedin_url: "",
       email: "",
       notes: "",
+      photo_url: "",
     });
     setEditingContact(null);
     setSelectedStepId(null);
@@ -845,11 +878,19 @@ export default function ProcessDetailPage() {
                               {isExpanded && (
                                 <div className="mt-3 space-y-2">
                                   {stepContacts.map(contact => (
-                                    <div key={contact.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                                    <div key={contact.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                                       <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center">
-                                          <User className="h-4 w-4 text-slate-600" />
-                                        </div>
+                                        {contact.photo_url ? (
+                                          <img
+                                            src={contact.photo_url}
+                                            alt={contact.name}
+                                            className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
+                                          />
+                                        ) : (
+                                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center shadow-sm">
+                                            <User className="h-5 w-5 text-slate-500" />
+                                          </div>
+                                        )}
                                         <div>
                                           <p className="text-sm font-medium text-slate-900">{contact.name}</p>
                                           {contact.role && (
@@ -858,12 +899,12 @@ export default function ProcessDetailPage() {
                                         </div>
                                         <div className="flex items-center gap-2 ml-2">
                                           {contact.email && (
-                                            <a href={`mailto:${contact.email}`} className="text-slate-400 hover:text-slate-600">
+                                            <a href={`mailto:${contact.email}`} className="text-slate-400 hover:text-slate-600 transition-colors">
                                               <Mail className="h-4 w-4" />
                                             </a>
                                           )}
                                           {contact.linkedin_url && (
-                                            <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600">
+                                            <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
                                               <Linkedin className="h-4 w-4" />
                                             </a>
                                           )}
@@ -949,12 +990,44 @@ export default function ProcessDetailPage() {
               {editingContact ? "Edit Contact" : "Add Contact"}
             </DialogTitle>
             <DialogDescription>
-              Track who you met during this interview
+              Paste a LinkedIn URL to auto-fill contact details
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleContactSubmit} className="space-y-4">
+            {/* LinkedIn URL - auto-fills name when valid URL is pasted */}
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>LinkedIn URL <span className="text-slate-400 font-normal">(optional)</span></Label>
+              <div className="relative">
+                <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  value={contactFormData.linkedin_url}
+                  onChange={(e) => handleLinkedInUrlChange(e.target.value)}
+                  placeholder="linkedin.com/in/john-smith"
+                  className="pl-9"
+                />
+              </div>
+              {!contactFormData.linkedin_url && (
+                <p className="text-xs text-slate-500">
+                  Paste a LinkedIn URL to auto-fill the name
+                </p>
+              )}
+            </div>
+
+            {/* Show extracted info preview */}
+            {contactFormData.linkedin_url && contactFormData.name && (
+              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
+                  {contactFormData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-slate-900">{contactFormData.name}</p>
+                  <p className="text-xs text-green-600">Name extracted from LinkedIn URL</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Name <span className="text-red-500">*</span></Label>
               <Input
                 value={contactFormData.name}
                 onChange={(e) =>
@@ -985,17 +1058,6 @@ export default function ProcessDetailPage() {
                   setContactFormData({ ...contactFormData, email: e.target.value })
                 }
                 placeholder="john@company.com"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>LinkedIn URL</Label>
-              <Input
-                value={contactFormData.linkedin_url}
-                onChange={(e) =>
-                  setContactFormData({ ...contactFormData, linkedin_url: e.target.value })
-                }
-                placeholder="https://linkedin.com/in/..."
               />
             </div>
 
