@@ -249,7 +249,7 @@ export default function ProcessDetailPage() {
   const [editingStep, setEditingStep] = useState<ProcessStep | null>(null);
   const [editingContact, setEditingContact] = useState<StepContact | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
-  const [selectedNetworkContactId, setSelectedNetworkContactId] = useState<string | null>(null);
+  const [selectedNetworkContactIds, setSelectedNetworkContactIds] = useState<string[]>([]);
   const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [isEventPickerOpen, setIsEventPickerOpen] = useState(false);
   const [eventPickerStepId, setEventPickerStepId] = useState<string | null>(null);
@@ -358,11 +358,35 @@ export default function ProcessDetailPage() {
   const fetchContacts = async (stepId: string) => {
     const { data, error } = await supabase
       .from("step_contacts")
-      .select("*")
+      .select(`
+        id,
+        step_id,
+        notes,
+        network_connection_id,
+        network_connection:network_connections!network_connection_id (
+          name,
+          role,
+          linkedin_url,
+          email,
+          avatar_url
+        )
+      `)
       .eq("step_id", stepId);
 
     if (!error && data) {
-      setContacts(prev => ({ ...prev, [stepId]: data }));
+      // Map the joined data to the expected format, using network_connection data if available
+      const mappedContacts = data.map(contact => ({
+        id: contact.id,
+        step_id: contact.step_id,
+        name: (contact.network_connection as any)?.name || '',
+        role: (contact.network_connection as any)?.role || null,
+        linkedin_url: (contact.network_connection as any)?.linkedin_url || null,
+        email: (contact.network_connection as any)?.email || null,
+        photo_url: (contact.network_connection as any)?.avatar_url || null,
+        notes: contact.notes,
+        network_connection_id: contact.network_connection_id,
+      }));
+      setContacts(prev => ({ ...prev, [stepId]: mappedContacts }));
     }
   };
 
@@ -481,46 +505,53 @@ export default function ProcessDetailPage() {
       return;
     }
 
-    // For new contacts, we need a selected network contact
-    if (!selectedNetworkContactId) {
-      toast.error("Please select a contact from your network");
+    // For new contacts, we need at least one selected network contact
+    if (selectedNetworkContactIds.length === 0) {
+      toast.error("Please select at least one contact from your network");
       return;
     }
 
-    // Get the network contact details
-    const networkContact = networkConnections.find(c => c.id === selectedNetworkContactId);
-    if (!networkContact) {
-      toast.error("Contact not found");
-      return;
-    }
-
-    // Check if this contact is already added to this step
+    // Get existing contacts to check for duplicates
     const existingContacts = contacts[selectedStepId] || [];
-    if (existingContacts.some(c => c.network_connection_id === selectedNetworkContactId)) {
-      toast.error("This contact is already added to this step");
+    const existingNetworkIds = new Set(existingContacts.map(c => c.network_connection_id));
+
+    // Filter out already added contacts and prepare data
+    const contactsToAdd = selectedNetworkContactIds
+      .filter(id => !existingNetworkIds.has(id))
+      .map(id => {
+        const networkContact = networkConnections.find(c => c.id === id);
+        if (!networkContact) return null;
+        return {
+          step_id: selectedStepId,
+          name: networkContact.name,
+          role: networkContact.role || null,
+          linkedin_url: networkContact.linkedin_url || null,
+          email: networkContact.email || null,
+          notes: null,
+          network_connection_id: id,
+        };
+      })
+      .filter(Boolean);
+
+    if (contactsToAdd.length === 0) {
+      toast.error("All selected contacts are already added to this step");
       return;
     }
 
-    // Create step_contact linked to the network connection
-    const contactData = {
-      step_id: selectedStepId,
-      name: networkContact.name,
-      role: networkContact.role || null,
-      linkedin_url: networkContact.linkedin_url || null,
-      email: networkContact.email || null,
-      notes: contactFormData.notes || null,
-      network_connection_id: selectedNetworkContactId,
-    };
-
-    const { error } = await supabase.from("step_contacts").insert(contactData);
+    const { error } = await supabase.from("step_contacts").insert(contactsToAdd);
 
     if (error) {
-      console.error("Failed to add contact:", error);
-      toast.error("Failed to add contact to step");
+      console.error("Failed to add contacts:", error);
+      toast.error("Failed to add contacts to step");
       return;
     }
 
-    toast.success("Contact added to step");
+    const skipped = selectedNetworkContactIds.length - contactsToAdd.length;
+    if (skipped > 0) {
+      toast.success(`Added ${contactsToAdd.length} contact(s), ${skipped} already existed`);
+    } else {
+      toast.success(`Added ${contactsToAdd.length} contact(s) to step`);
+    }
     setIsContactDialogOpen(false);
     resetContactForm();
     fetchContacts(selectedStepId);
@@ -699,7 +730,7 @@ export default function ProcessDetailPage() {
       notes: "",
       photo_url: "",
     });
-    setSelectedNetworkContactId(null);
+    setSelectedNetworkContactIds([]);
     setContactSearchQuery("");
     setFormAvatarError(false);
     setEditingContact(null);
@@ -1683,11 +1714,26 @@ export default function ProcessDetailPage() {
                           <button
                             key={contact.id}
                             type="button"
-                            onClick={() => setSelectedNetworkContactId(contact.id)}
+                            onClick={() => {
+                              setSelectedNetworkContactIds(prev =>
+                                prev.includes(contact.id)
+                                  ? prev.filter(id => id !== contact.id)
+                                  : [...prev, contact.id]
+                              );
+                            }}
                             className={`w-full flex items-center gap-3 p-3 text-left hover:bg-slate-50 transition-colors ${
-                              selectedNetworkContactId === contact.id ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
+                              selectedNetworkContactIds.includes(contact.id) ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
                             }`}
                           >
+                            <div className={`h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                              selectedNetworkContactIds.includes(contact.id)
+                                ? "bg-blue-500 border-blue-500"
+                                : "border-slate-300"
+                            }`}>
+                              {selectedNetworkContactIds.includes(contact.id) && (
+                                <CheckCircle className="h-4 w-4 text-white" />
+                              )}
+                            </div>
                             <div className="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                               <img
                                 src={getContactAvatarUrl({ name: contact.name, email: contact.email, photo_url: null })}
@@ -1704,9 +1750,6 @@ export default function ProcessDetailPage() {
                                 <p className="text-xs text-slate-500 truncate">{contact.role}</p>
                               )}
                             </div>
-                            {selectedNetworkContactId === contact.id && (
-                              <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                            )}
                           </button>
                         ))}
                       {networkConnections.filter(c =>
@@ -1720,18 +1763,12 @@ export default function ProcessDetailPage() {
                       )}
                     </div>
 
-                    {/* Notes */}
-                    <div className="space-y-2">
-                      <Label>Notes for this step <span className="text-slate-400 font-normal">(optional)</span></Label>
-                      <Textarea
-                        value={contactFormData.notes}
-                        onChange={(e) =>
-                          setContactFormData({ ...contactFormData, notes: e.target.value })
-                        }
-                        placeholder="Any notes about this contact for this interview step..."
-                        rows={2}
-                      />
-                    </div>
+                    {/* Selected count */}
+                    {selectedNetworkContactIds.length > 0 && (
+                      <p className="text-sm text-blue-600 font-medium">
+                        {selectedNetworkContactIds.length} contact{selectedNetworkContactIds.length > 1 ? 's' : ''} selected
+                      </p>
+                    )}
                   </>
                 )}
               </>
@@ -1742,8 +1779,8 @@ export default function ProcessDetailPage() {
                 Cancel
               </Button>
               {(editingContact || networkConnections.length > 0) && (
-                <Button type="submit" disabled={!editingContact && !selectedNetworkContactId}>
-                  {editingContact ? "Update Notes" : "Add Contact"}
+                <Button type="submit" disabled={!editingContact && selectedNetworkContactIds.length === 0}>
+                  {editingContact ? "Update Notes" : `Add ${selectedNetworkContactIds.length > 0 ? selectedNetworkContactIds.length : ''} Contact${selectedNetworkContactIds.length > 1 ? 's' : ''}`}
                 </Button>
               )}
             </div>
