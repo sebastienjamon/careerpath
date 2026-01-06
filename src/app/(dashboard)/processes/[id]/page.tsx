@@ -53,6 +53,8 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
+  Eye,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -211,6 +213,7 @@ export default function ProcessDetailPage() {
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState<string | null>(null);
   const [expandedRecommendations, setExpandedRecommendations] = useState<Record<string, boolean>>({});
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
+  const [notesPreviewMode, setNotesPreviewMode] = useState<Record<string, boolean>>({});
 
   const [contactFormData, setContactFormData] = useState({
     name: "",
@@ -1193,22 +1196,61 @@ export default function ProcessDetailPage() {
 
                             {/* Preparation Notes Section */}
                             <div className="mt-4">
-                              <div className="flex items-center gap-2 mb-2">
-                                <BookOpen className="h-4 w-4 text-slate-600" />
-                                <span className="text-sm font-semibold text-slate-900">Your Preparation Notes</span>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <BookOpen className="h-4 w-4 text-slate-600" />
+                                  <span className="text-sm font-semibold text-slate-900">Your Preparation Notes</span>
+                                  <span className="text-xs text-slate-400">(Markdown supported)</span>
+                                </div>
+                                <div className="flex items-center gap-1 bg-slate-100 rounded-md p-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setNotesPreviewMode(prev => ({ ...prev, [step.id]: false }))}
+                                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                      !notesPreviewMode[step.id]
+                                        ? "bg-white text-slate-900 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                  >
+                                    <Pencil className="h-3 w-3 inline mr-1" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setNotesPreviewMode(prev => ({ ...prev, [step.id]: true }))}
+                                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                      notesPreviewMode[step.id]
+                                        ? "bg-white text-slate-900 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                  >
+                                    <Eye className="h-3 w-3 inline mr-1" />
+                                    Preview
+                                  </button>
+                                </div>
                               </div>
-                              <Textarea
-                                value={step.preparation_notes || ""}
-                                onChange={(e) => {
-                                  // Update local state immediately for responsive UI
-                                  setSteps(prev => prev.map(s =>
-                                    s.id === step.id ? { ...s, preparation_notes: e.target.value } : s
-                                  ));
-                                }}
-                                onBlur={(e) => handleSavePreparationNotes(step.id, e.target.value)}
-                                placeholder="Take notes here to prepare for this interview... Questions to ask, topics to research, talking points, etc."
-                                className="min-h-[120px] resize-y"
-                              />
+                              {notesPreviewMode[step.id] ? (
+                                <div className="min-h-[120px] p-3 border rounded-md bg-white prose prose-sm prose-slate max-w-none">
+                                  {step.preparation_notes ? (
+                                    <ReactMarkdown>{step.preparation_notes}</ReactMarkdown>
+                                  ) : (
+                                    <p className="text-slate-400 italic">No notes yet. Switch to Edit to add some.</p>
+                                  )}
+                                </div>
+                              ) : (
+                                <Textarea
+                                  value={step.preparation_notes || ""}
+                                  onChange={(e) => {
+                                    // Update local state immediately for responsive UI
+                                    setSteps(prev => prev.map(s =>
+                                      s.id === step.id ? { ...s, preparation_notes: e.target.value } : s
+                                    ));
+                                  }}
+                                  onBlur={(e) => handleSavePreparationNotes(step.id, e.target.value)}
+                                  placeholder="Take notes here to prepare for this interview...&#10;&#10;**Supports Markdown:**&#10;- Use **bold** and *italic*&#10;- Create bullet lists&#10;- Add [links](url)"
+                                  className="min-h-[120px] resize-y font-mono text-sm"
+                                />
+                              )}
                             </div>
 
                             {/* Contacts Section */}
