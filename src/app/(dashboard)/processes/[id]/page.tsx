@@ -343,7 +343,7 @@ export default function ProcessDetailPage() {
       .from("process_steps")
       .select("*")
       .eq("process_id", processId)
-      .order("step_number", { ascending: true });
+      .order("scheduled_date", { ascending: false, nullsFirst: false });
 
     if (!error && data) {
       setSteps(data);
