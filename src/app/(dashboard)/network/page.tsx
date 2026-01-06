@@ -340,7 +340,20 @@ export default function NetworkPage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      const email = e.target.value;
+                      const updates: Partial<typeof formData> = { email };
+                      // Auto-extract domain from email if company_website is empty
+                      if (email.includes('@') && !formData.company_website) {
+                        const domain = email.split('@')[1];
+                        // Skip common personal email domains
+                        const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'me.com', 'aol.com', 'live.com', 'msn.com', 'protonmail.com'];
+                        if (domain && !personalDomains.includes(domain.toLowerCase())) {
+                          updates.company_website = domain;
+                        }
+                      }
+                      setFormData(prev => ({ ...prev, ...updates }));
+                    }}
                     placeholder="contact@example.com"
                   />
                 </div>
@@ -356,7 +369,7 @@ export default function NetworkPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="company_website">Company Website (for logo)</Label>
+                  <Label htmlFor="company_website">Company Domain</Label>
                   <div className="flex gap-2">
                     <Input
                       id="company_website"
