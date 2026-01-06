@@ -22,7 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2 } from "lucide-react";
+import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2, List, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 import { toast } from "sonner";
 
@@ -71,9 +72,29 @@ interface CareerExperience {
   description: string | null;
   skills: string[];
   is_current: boolean;
+  ote: number | null;
+  currency: string;
   created_at: string;
   updated_at: string;
 }
+
+const CURRENCIES = [
+  { value: "USD", label: "USD ($)", symbol: "$" },
+  { value: "EUR", label: "EUR (€)", symbol: "€" },
+  { value: "GBP", label: "GBP (£)", symbol: "£" },
+  { value: "CHF", label: "CHF", symbol: "CHF" },
+  { value: "CAD", label: "CAD ($)", symbol: "C$" },
+  { value: "AUD", label: "AUD ($)", symbol: "A$" },
+  { value: "JPY", label: "JPY (¥)", symbol: "¥" },
+];
+
+const formatCurrency = (amount: number, currency: string) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
 
 // Extract domain from URL or domain string
 const extractDomain = (input: string | null): string | null => {
@@ -123,7 +144,10 @@ export default function JourneyPage() {
     description: "",
     skills: "",
     is_current: false,
+    ote: "",
+    currency: "USD",
   });
+  const [viewMode, setViewMode] = useState<"list" | "chart">("list");
   const [failedLogos, setFailedLogos] = useState<Set<string>>(new Set());
 
   // LinkedIn PDF import state
@@ -248,6 +272,8 @@ export default function JourneyPage() {
       description: formData.description || null,
       skills: formData.skills ? formData.skills.split(",").map((s) => s.trim()) : [],
       is_current: formData.is_current,
+      ote: formData.ote ? parseInt(formData.ote, 10) : null,
+      currency: formData.currency,
     };
 
     if (editingExperience) {
@@ -292,6 +318,8 @@ export default function JourneyPage() {
       description: experience.description || "",
       skills: experience.skills?.join(", ") || "",
       is_current: experience.is_current,
+      ote: experience.ote?.toString() || "",
+      currency: experience.currency || "USD",
     });
     setIsDialogOpen(true);
   };
@@ -320,6 +348,8 @@ export default function JourneyPage() {
       description: "",
       skills: "",
       is_current: false,
+      ote: "",
+      currency: "USD",
     });
     setEditingExperience(null);
   };
@@ -457,7 +487,30 @@ export default function JourneyPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Career Journey</h1>
           <p className="text-slate-600 mt-1 text-sm sm:text-base">Track your professional experiences over time</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* View toggle */}
+          <div className="flex rounded-lg border border-slate-200 p-0.5 mr-2">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                viewMode === "list"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("chart")}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                viewMode === "chart"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <LineChartIcon className="h-4 w-4" />
+            </button>
+          </div>
           <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setIsImportOpen(true)}>
             <Linkedin className="h-4 w-4" />
             Import
@@ -623,6 +676,35 @@ export default function JourneyPage() {
                 <Label htmlFor="is_current" className="font-normal">
                   I currently work here
                 </Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Annual Compensation (OTE)</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                  >
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    value={formData.ote}
+                    onChange={(e) => setFormData({ ...formData, ote: e.target.value })}
+                    placeholder="150000"
+                    className="flex-1"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Used for salary progression chart (optional)
+                </p>
               </div>
 
               <div className="flex justify-end gap-2">
@@ -979,7 +1061,7 @@ export default function JourneyPage() {
             </div>
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === "list" ? (
         <div className="relative">
           {/* Timeline line */}
           <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200" />
@@ -1060,6 +1142,129 @@ export default function JourneyPage() {
             })}
           </div>
         </div>
+      ) : (
+        // Chart View
+        (() => {
+          const experiencesWithOte = experiences
+            .filter(exp => exp.ote)
+            .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+
+          if (experiencesWithOte.length === 0) {
+            return (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <TrendingUp className="h-12 w-12 text-slate-300 mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900">No salary data yet</h3>
+                  <p className="text-slate-500 mt-1 mb-4 text-center max-w-md">
+                    Add OTE/salary to your experiences to see your compensation progression
+                  </p>
+                  <Button variant="outline" onClick={() => setViewMode("list")}>
+                    Switch to List View
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          const chartData = experiencesWithOte.map(exp => ({
+            date: new Date(exp.start_date).getTime(),
+            year: new Date(exp.start_date).getFullYear(),
+            ote: exp.ote,
+            currency: exp.currency || "USD",
+            company: exp.company_name,
+            title: exp.job_title,
+            logo: getCompanyLogoUrl(exp.company_website),
+            isCurrent: exp.is_current,
+          }));
+
+          const CustomDot = (props: { cx?: number; cy?: number; payload?: typeof chartData[0] }) => {
+            const { cx, cy, payload } = props;
+            if (!cx || !cy || !payload) return null;
+
+            return (
+              <g>
+                <circle cx={cx} cy={cy} r={20} fill="white" stroke="#e2e8f0" strokeWidth={2} />
+                {payload.logo && (
+                  <image
+                    x={cx - 12}
+                    y={cy - 12}
+                    width={24}
+                    height={24}
+                    href={payload.logo}
+                    clipPath="inset(0% round 4px)"
+                  />
+                )}
+              </g>
+            );
+          };
+
+          const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: typeof chartData[0] }> }) => {
+            if (!active || !payload || !payload.length) return null;
+            const data = payload[0].payload;
+            return (
+              <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3 max-w-xs">
+                <p className="font-medium text-slate-900">{data.title}</p>
+                <p className="text-sm text-slate-600">{data.company}</p>
+                <p className="text-sm font-medium text-green-600 mt-1">
+                  {formatCurrency(data.ote!, data.currency)}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">{data.year}</p>
+              </div>
+            );
+          };
+
+          const minOte = Math.min(...chartData.map(d => d.ote!));
+          const maxOte = Math.max(...chartData.map(d => d.ote!));
+          const padding = (maxOte - minOte) * 0.2 || maxOte * 0.2;
+
+          return (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Compensation Progression
+                </CardTitle>
+                <CardDescription>
+                  Your salary growth over time
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
+                      <XAxis
+                        dataKey="year"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                      />
+                      <YAxis
+                        domain={[Math.max(0, minOte - padding), maxOte + padding]}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        tickFormatter={(value) => {
+                          if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                          if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                          return value.toString();
+                        }}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line
+                        type="monotone"
+                        dataKey="ote"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        dot={<CustomDot />}
+                        activeDot={{ r: 24, fill: "#3b82f6", stroke: "white", strokeWidth: 3 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()
       )}
     </div>
   );
