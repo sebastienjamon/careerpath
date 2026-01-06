@@ -617,16 +617,16 @@ export default function ProcessDetailPage() {
   };
 
   const handleDeleteContact = async (contactId: string, stepId: string) => {
-    if (!confirm("Are you sure you want to delete this contact?")) return;
+    if (!confirm("Remove this interviewer from this step?")) return;
 
     const { error } = await supabase.from("step_contacts").delete().eq("id", contactId);
 
     if (error) {
-      toast.error("Failed to delete contact");
+      toast.error("Failed to remove interviewer");
       return;
     }
 
-    toast.success("Contact deleted");
+    toast.success("Interviewer removed from step");
     fetchContacts(stepId);
   };
 
