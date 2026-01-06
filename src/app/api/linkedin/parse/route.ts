@@ -31,6 +31,12 @@ interface ParsedProfile {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check for OpenAI API key
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY not configured");
+      return NextResponse.json({ error: "AI service not configured" }, { status: 500 });
+    }
+
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -54,10 +60,16 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Dynamic import to avoid build-time issues with pdf-parse
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse");
-    const pdfData = await pdfParse(buffer);
-    const pdfText = pdfData.text;
+    let pdfText: string;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require("pdf-parse");
+      const pdfData = await pdfParse(buffer);
+      pdfText = pdfData.text;
+    } catch (pdfError) {
+      console.error("PDF parsing error:", pdfError);
+      return NextResponse.json({ error: "Failed to read PDF file" }, { status: 400 });
+    }
 
     if (!pdfText || pdfText.trim().length < 50) {
       return NextResponse.json({ error: "Could not extract text from PDF" }, { status: 400 });
@@ -170,6 +182,15 @@ Return ONLY valid JSON in this exact format:
     });
   } catch (error) {
     console.error("Error parsing LinkedIn PDF:", error);
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes("API key")) {
+        return NextResponse.json({ error: "AI service authentication failed" }, { status: 500 });
+      }
+      if (error.message.includes("rate limit")) {
+        return NextResponse.json({ error: "AI service rate limit reached. Please try again later." }, { status: 429 });
+      }
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
