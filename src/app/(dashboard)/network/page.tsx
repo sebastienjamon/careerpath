@@ -34,9 +34,9 @@ interface NetworkConnection {
   updated_at: string;
 }
 
-// DiceBear open-peeps base URL (excluding cyclops and eyesClosed faces)
+// DiceBear open-peeps base URL
 const DICEBEAR_BASE = "https://api.dicebear.com/9.x/open-peeps/svg";
-const DICEBEAR_OPTIONS = "face=angryWithFang,awe,blank,calm,cheeky,concerned,concernedFear,contempt,cute,driven,eatingHappy,explaining,fear,hectic,lovingGrin1,lovingGrin2,monster,old,rage,serious,smile,smileBig,smileLOL,smileTeethGap,solemn,suspicious,tired,veryAngry&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4";
+const DICEBEAR_OPTIONS = "backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4";
 
 // Generate DiceBear avatar URL with seed
 const getDiceBearUrl = (seed: string): string => {
