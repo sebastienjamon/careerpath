@@ -888,7 +888,7 @@ export default function ProcessDetailPage() {
                   Add Step
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingStep ? "Edit Step" : "Add Interview Step"}
