@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Plus,
   ArrowRight,
+  Building2,
 } from "lucide-react";
 
 interface UpcomingStep {
@@ -27,8 +28,11 @@ interface UpcomingStep {
 interface RecentProcess {
   id: string;
   company_name: string;
+  company_website: string | null;
   job_title: string;
   status: string;
+  applied_date: string | null;
+  process_steps: { id: string }[];
 }
 
 export default async function DashboardPage() {
@@ -64,8 +68,8 @@ export default async function DashboardPage() {
       .limit(5),
     supabase
       .from("recruitment_processes")
-      .select("id, company_name, job_title, status")
-      .order("created_at", { ascending: false })
+      .select("id, company_name, company_website, job_title, status, applied_date, process_steps(id)")
+      .order("applied_date", { ascending: false, nullsFirst: false })
       .limit(5),
   ]);
 
@@ -110,6 +114,12 @@ export default async function DashboardPage() {
       color: "text-orange-600 bg-orange-100",
     },
   ];
+
+  const getCompanyLogo = (website: string | null) => {
+    if (!website) return null;
+    const domain = website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -249,18 +259,39 @@ export default async function DashboardPage() {
             {recentProcesses && recentProcesses.length > 0 ? (
               <div className="space-y-4">
                 {recentProcesses.map((process) => (
-                  <div
+                  <Link
                     key={process.id}
-                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 rounded-lg"
+                    href={`/processes/${process.id}`}
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-900 truncate">{process.company_name}</p>
-                      <p className="text-sm text-slate-600 truncate">{process.job_title}</p>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      {getCompanyLogo(process.company_website) ? (
+                        <img
+                          src={getCompanyLogo(process.company_website)!}
+                          alt=""
+                          className="w-8 h-8 rounded"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-slate-200 flex items-center justify-center">
+                          <Building2 className="w-4 h-4 text-slate-500" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-slate-900 truncate">{process.company_name}</p>
+                        <p className="text-sm text-slate-600 truncate">{process.job_title}</p>
+                      </div>
                     </div>
-                    <Badge className={getStatusColor(process.status)}>
-                      {process.status?.replace("_", " ")}
-                    </Badge>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      {process.process_steps?.length > 0 && (
+                        <span className="text-xs text-slate-500">
+                          {process.process_steps.length} step{process.process_steps.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      <Badge className={getStatusColor(process.status)}>
+                        {process.status?.replace("_", " ")}
+                      </Badge>
+                    </div>
+                  </Link>
                 ))}
               </div>
             ) : (

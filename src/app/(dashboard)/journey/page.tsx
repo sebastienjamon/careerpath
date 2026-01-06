@@ -22,10 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Linkedin, Sparkles, ChevronRight } from "lucide-react";
+import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2 } from "lucide-react";
 
 import { toast } from "sonner";
-import Link from "next/link";
 
 const MONTHS = [
   { value: "01", label: "Jan" },
@@ -106,9 +105,7 @@ export default function JourneyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExperience, setEditingExperience] = useState<CareerExperience | null>(null);
-  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [quickAddStep, setQuickAddStep] = useState(0);
   const [quickAddExperiences, setQuickAddExperiences] = useState<Array<{
     company_name: string;
     job_title: string;
@@ -129,43 +126,24 @@ export default function JourneyPage() {
   });
   const [failedLogos, setFailedLogos] = useState<Set<string>>(new Set());
 
+  // LinkedIn PDF import state
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importedExperiences, setImportedExperiences] = useState<Array<{
+    company_name: string;
+    company_website: string | null;
+    job_title: string;
+    start_date: string;
+    end_date: string | null;
+    is_current: boolean;
+    description: string | null;
+    selected: boolean;
+  }>>([]);
+  const [importStep, setImportStep] = useState<"upload" | "review">("upload");
+
   useEffect(() => {
     fetchExperiences();
-    fetchLinkedinUrl();
   }, []);
-
-  const fetchLinkedinUrl = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("users")
-      .select("linkedin_profile_url")
-      .eq("id", user.id)
-      .single();
-
-    if (data?.linkedin_profile_url) {
-      setLinkedinUrl(data.linkedin_profile_url);
-    }
-  };
-
-  const saveLinkedinUrl = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase
-      .from("users")
-      .update({ linkedin_profile_url: linkedinUrl })
-      .eq("id", user.id);
-
-    if (error) {
-      toast.error("Failed to save LinkedIn URL");
-      return;
-    }
-
-    toast.success("LinkedIn profile saved!");
-    setIsQuickAddOpen(true);
-  };
 
   const addQuickExperience = () => {
     setQuickAddExperiences([
@@ -353,6 +331,125 @@ export default function JourneyPage() {
     });
   };
 
+  // LinkedIn PDF import handlers
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.includes("pdf")) {
+      toast.error("Please upload a PDF file");
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/linkedin/parse", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to parse PDF");
+      }
+
+      const data = await response.json();
+
+      if (!data.experiences || data.experiences.length === 0) {
+        toast.error("No experiences found in the PDF");
+        return;
+      }
+
+      // Convert to our format with selection state
+      setImportedExperiences(
+        data.experiences.map((exp: {
+          company_name: string;
+          company_website: string | null;
+          job_title: string;
+          start_date: string;
+          end_date: string | null;
+          is_current: boolean;
+          description: string | null;
+        }) => ({
+          ...exp,
+          selected: true, // Select all by default
+        }))
+      );
+
+      setImportStep("review");
+      toast.success(`Found ${data.experiences.length} experiences`);
+    } catch (error) {
+      console.error("Import error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to import PDF");
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      e.target.value = "";
+    }
+  };
+
+  const toggleImportSelection = (index: number) => {
+    setImportedExperiences(prev =>
+      prev.map((exp, i) =>
+        i === index ? { ...exp, selected: !exp.selected } : exp
+      )
+    );
+  };
+
+  const selectAllImports = () => {
+    setImportedExperiences(prev => prev.map(exp => ({ ...exp, selected: true })));
+  };
+
+  const deselectAllImports = () => {
+    setImportedExperiences(prev => prev.map(exp => ({ ...exp, selected: false })));
+  };
+
+  const saveImportedExperiences = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const selectedExperiences = importedExperiences.filter(exp => exp.selected);
+
+    if (selectedExperiences.length === 0) {
+      toast.error("Please select at least one experience to import");
+      return;
+    }
+
+    const experiencesToInsert = selectedExperiences.map(exp => ({
+      user_id: user.id,
+      company_name: exp.company_name,
+      company_website: exp.company_website,
+      job_title: exp.job_title,
+      start_date: `${exp.start_date}-01`, // Convert YYYY-MM to YYYY-MM-DD
+      end_date: exp.is_current ? null : (exp.end_date ? `${exp.end_date}-01` : null),
+      is_current: exp.is_current,
+      description: exp.description,
+      skills: [],
+    }));
+
+    const { error } = await supabase.from("career_experiences").insert(experiencesToInsert);
+
+    if (error) {
+      toast.error("Failed to save experiences");
+      return;
+    }
+
+    toast.success(`Imported ${selectedExperiences.length} experience(s)!`);
+    setIsImportOpen(false);
+    setImportStep("upload");
+    setImportedExperiences([]);
+    fetchExperiences();
+  };
+
+  const resetImport = () => {
+    setImportStep("upload");
+    setImportedExperiences([]);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -361,9 +458,9 @@ export default function JourneyPage() {
           <p className="text-slate-600 mt-1 text-sm sm:text-base">Track your professional experiences over time</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setIsQuickAddOpen(true)}>
-            <Sparkles className="h-4 w-4" />
-            Quick Add
+          <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setIsImportOpen(true)}>
+            <Linkedin className="h-4 w-4" />
+            Import
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
@@ -542,7 +639,7 @@ export default function JourneyPage() {
         </div>
       </div>
 
-      {/* LinkedIn Import Card */}
+      {/* Quick start card */}
       {experiences.length === 0 && !isLoading && (
         <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-100">
           <CardContent className="py-6">
@@ -553,25 +650,159 @@ export default function JourneyPage() {
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-semibold text-slate-900">Import from LinkedIn</h3>
                 <p className="text-sm text-slate-600">
-                  Add your LinkedIn profile URL and quickly add your work history
+                  Export your LinkedIn profile as PDF and import your work history instantly
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Input
-                  placeholder="linkedin.com/in/yourprofile"
-                  value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
-                  className="w-full sm:w-64"
-                />
-                <Button onClick={saveLinkedinUrl} disabled={!linkedinUrl} className="gap-2">
-                  <ChevronRight className="h-4 w-4" />
-                  Start
-                </Button>
-              </div>
+              <Button onClick={() => setIsImportOpen(true)} className="gap-2">
+                <Upload className="h-4 w-4" />
+                Import PDF
+              </Button>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* LinkedIn Import Dialog */}
+      <Dialog open={isImportOpen} onOpenChange={(open) => {
+        setIsImportOpen(open);
+        if (!open) resetImport();
+      }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Linkedin className="h-5 w-5 text-blue-600" />
+              Import from LinkedIn
+            </DialogTitle>
+            <DialogDescription>
+              {importStep === "upload"
+                ? "Upload your LinkedIn profile PDF to automatically extract your work history."
+                : "Review and select which experiences to import."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {importStep === "upload" ? (
+            <div className="space-y-4 mt-4">
+              {/* Instructions */}
+              <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+                <h4 className="font-medium text-slate-900">How to export your LinkedIn profile:</h4>
+                <ol className="text-sm text-slate-600 space-y-2 list-decimal list-inside">
+                  <li>Go to your LinkedIn profile page</li>
+                  <li>Click the <strong>More</strong> button below your profile photo</li>
+                  <li>Select <strong>Save to PDF</strong></li>
+                  <li>Upload the downloaded PDF file below</li>
+                </ol>
+              </div>
+
+              {/* Upload area */}
+              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 border-slate-300 hover:border-blue-400 transition-colors">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  {isImporting ? (
+                    <>
+                      <Loader2 className="w-10 h-10 mb-3 text-blue-600 animate-spin" />
+                      <p className="text-sm text-slate-600">Analyzing your profile...</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-10 h-10 mb-3 text-slate-400" />
+                      <p className="mb-2 text-sm text-slate-600">
+                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="text-xs text-slate-500">PDF file from LinkedIn</p>
+                    </>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,application/pdf"
+                  onChange={handleFileUpload}
+                  disabled={isImporting}
+                />
+              </label>
+            </div>
+          ) : (
+            <div className="space-y-4 mt-4">
+              {/* Selection controls */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">
+                  {importedExperiences.filter(e => e.selected).length} of {importedExperiences.length} selected
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={selectAllImports}>
+                    Select all
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={deselectAllImports}>
+                    Deselect all
+                  </Button>
+                </div>
+              </div>
+
+              {/* Experience list */}
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {importedExperiences.map((exp, index) => {
+                  const logoUrl = exp.company_website ? getCompanyLogoUrl(exp.company_website) : null;
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => toggleImportSelection(index)}
+                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                        exp.selected
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-1 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center ${
+                          exp.selected ? "bg-blue-600 border-blue-600" : "border-slate-300"
+                        }`}>
+                          {exp.selected && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                        {logoUrl && (
+                          <img
+                            src={logoUrl}
+                            alt=""
+                            className="w-8 h-8 rounded flex-shrink-0"
+                            onError={(e) => e.currentTarget.style.display = "none"}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-900 truncate">{exp.job_title}</p>
+                          <p className="text-sm text-slate-600 truncate">{exp.company_name}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {exp.start_date} - {exp.is_current ? "Present" : exp.end_date || "N/A"}
+                          </p>
+                          {exp.description && (
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{exp.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-between gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={resetImport}>
+                  Back
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsImportOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={saveImportedExperiences}
+                    disabled={importedExperiences.filter(e => e.selected).length === 0}
+                    className="gap-2"
+                  >
+                    <Check className="h-4 w-4" />
+                    Import {importedExperiences.filter(e => e.selected).length} Experience(s)
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Quick Add Dialog */}
       <Dialog open={isQuickAddOpen} onOpenChange={setIsQuickAddOpen}>
@@ -587,21 +818,6 @@ export default function JourneyPage() {
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
-            {linkedinUrl && (
-              <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
-                <Linkedin className="h-4 w-4 text-blue-600" />
-                <span>Reference your profile:</span>
-                <a
-                  href={linkedinUrl.startsWith("http") ? linkedinUrl : `https://${linkedinUrl}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline truncate max-w-xs"
-                >
-                  {linkedinUrl}
-                </a>
-              </div>
-            )}
-
             {quickAddExperiences.map((exp, index) => (
               <div key={index} className="p-4 border rounded-lg space-y-3 bg-white">
                 <div className="flex items-center justify-between">
@@ -748,13 +964,19 @@ export default function JourneyPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Briefcase className="h-12 w-12 text-slate-300 mb-4" />
             <h3 className="text-lg font-medium text-slate-900">No experiences yet</h3>
-            <p className="text-slate-500 mt-1 mb-4">
-              Start building your career timeline by adding your first experience
+            <p className="text-slate-500 mt-1 mb-4 text-center max-w-md">
+              Import your work history from LinkedIn or add experiences manually
             </p>
-            <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Your First Experience
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsQuickAddOpen(true)} className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Add Manually
+              </Button>
+              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Experience
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
