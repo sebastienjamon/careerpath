@@ -1093,7 +1093,7 @@ export default function ProcessDetailPage() {
                             >
                               <div className="flex items-center gap-3">
                                 <h3 className="font-semibold text-slate-900">
-                                  Step {step.step_number}: {STEP_TYPE_OPTIONS.find(o => o.value === step.step_type)?.label}
+                                  Step {step.step_number}: {step.description || STEP_TYPE_OPTIONS.find(o => o.value === step.step_type)?.label}
                                 </h3>
                                 {getStatusBadge(step.status)}
                                 {expandedSteps[step.id] ? (
