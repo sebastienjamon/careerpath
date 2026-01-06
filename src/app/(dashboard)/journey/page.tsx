@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2, List, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, CartesianGrid } from "recharts";
 
 import { toast } from "sonner";
 
@@ -1218,7 +1218,7 @@ export default function JourneyPage() {
           };
 
           // Custom label to show percentage change along the line between points
-          const CustomLabel = (props: { x?: number; y?: number; index?: number; value?: number; viewBox?: { x: number; width: number } }) => {
+          const CustomLabel = (props: { x?: number; y?: number; index?: number; value?: number; viewBox?: { x: number; y: number; width: number; height: number } }) => {
             const { x, y, index, viewBox } = props;
             if (!x || !y || index === undefined || index === 0 || !viewBox) return null;
 
@@ -1226,28 +1226,38 @@ export default function JourneyPage() {
             const prevData = chartData[index - 1];
             if (!currentData?.percentChange || !prevData) return null;
 
-            // Calculate midpoint position (offset left toward previous point)
+            // Calculate midpoint X position
             const pointSpacing = viewBox.width / (chartData.length - 1 || 1);
             const midX = x - pointSpacing / 2;
+
+            // Calculate midpoint Y position along the line
+            // Y scale: viewBox.y is top, viewBox.y + viewBox.height is bottom (where 0 is)
+            const yScale = viewBox.height / (maxOte + padding);
+            const prevY = viewBox.y + viewBox.height - (prevData.ote || 0) * yScale;
+            const currY = y;
+            const midY = (prevY + currY) / 2;
+
             const isPositive = currentData.percentChange >= 0;
             const label = `${isPositive ? "+" : ""}${Math.round(currentData.percentChange)}%`;
 
             return (
               <g>
                 <rect
-                  x={midX - 24}
-                  y={y - 32}
-                  width={48}
-                  height={20}
-                  rx={10}
+                  x={midX - 26}
+                  y={midY - 12}
+                  width={52}
+                  height={22}
+                  rx={11}
                   fill={isPositive ? "#dcfce7" : "#fee2e2"}
+                  stroke={isPositive ? "#86efac" : "#fca5a5"}
+                  strokeWidth={1}
                 />
                 <text
                   x={midX}
-                  y={y - 18}
+                  y={midY + 4}
                   textAnchor="middle"
                   fill={isPositive ? "#16a34a" : "#dc2626"}
-                  fontSize={11}
+                  fontSize={12}
                   fontWeight={600}
                 >
                   {label}
@@ -1271,13 +1281,22 @@ export default function JourneyPage() {
             );
           };
 
-          const minOte = Math.min(...chartData.map(d => d.ote!));
           const maxOte = Math.max(...chartData.map(d => d.ote!));
-          const padding = (maxOte - minOte) * 0.2 || maxOte * 0.2;
+          const padding = maxOte * 0.15;
+
+          // Calculate stats
+          const firstOte = chartData[0]?.ote || 0;
+          const lastOte = chartData[chartData.length - 1]?.ote || 0;
+          const totalGrowth = firstOte > 0 ? ((lastOte - firstOte) / firstOte) * 100 : 0;
+          const firstYear = chartData[0]?.year || 0;
+          const lastYear = chartData[chartData.length - 1]?.year || 0;
+          const yearsTracked = lastYear - firstYear;
+          const avgAnnualGrowth = yearsTracked > 0 ? totalGrowth / yearsTracked : 0;
+          const totalRoles = chartData.length;
 
           return (
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-4">
                 <CardTitle className="text-base flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
                   Compensation Progression
@@ -1285,20 +1304,45 @@ export default function JourneyPage() {
                 <CardDescription>
                   Your salary growth over time
                 </CardDescription>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">
+                      {totalGrowth >= 0 ? "+" : ""}{Math.round(totalGrowth)}%
+                    </p>
+                    <p className="text-xs text-slate-500">Total Growth</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">
+                      {avgAnnualGrowth >= 0 ? "+" : ""}{avgAnnualGrowth.toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-slate-500">Avg. per Year</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">{yearsTracked}</p>
+                    <p className="text-xs text-slate-500">Years Tracked</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">{totalRoles}</p>
+                    <p className="text-xs text-slate-500">Roles</p>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 40, right: 30, left: 20, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                       <XAxis
                         dataKey="year"
-                        axisLine={false}
+                        axisLine={{ stroke: "#e2e8f0" }}
                         tickLine={false}
                         tick={{ fill: "#64748b", fontSize: 12 }}
                       />
                       <YAxis
-                        domain={[Math.max(0, minOte - padding), maxOte + padding]}
-                        axisLine={false}
+                        domain={[0, maxOte + padding]}
+                        axisLine={{ stroke: "#e2e8f0" }}
                         tickLine={false}
                         tick={{ fill: "#64748b", fontSize: 12 }}
                         tickFormatter={(value) => {
