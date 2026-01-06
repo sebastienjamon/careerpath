@@ -48,8 +48,8 @@ const getAvatarUrl = (connection: NetworkConnection, useFallback = false): strin
     if (connection.avatar_url) return connection.avatar_url;
     if (connection.email) return `https://unavatar.io/${encodeURIComponent(connection.email)}?fallback=false`;
   }
-  // DiceBear notionists-neutral - clean, consistent illustrated avatars
-  return `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(connection.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  // DiceBear open-peeps - exclude cyclops (1 eye) and eyesClosed faces
+  return `https://api.dicebear.com/9.x/open-peeps/svg?seed=${encodeURIComponent(connection.name)}&face=angryWithFang,awe,blank,calm,cheeky,concerned,concernedFear,contempt,cute,driven,eatingHappy,explaining,fear,hectic,lovingGrin1,lovingGrin2,monster,old,rage,serious,smile,smileBig,smileLOL,smileTeethGap,solemn,suspicious,tired,veryAngry&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
 };
 
 // Get preview avatar for form
@@ -58,7 +58,8 @@ const getPreviewAvatarUrl = (name: string, email: string, avatarUrl: string, use
     if (avatarUrl) return avatarUrl;
     if (email) return `https://unavatar.io/${encodeURIComponent(email)}?fallback=false`;
   }
-  if (name) return `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  // DiceBear open-peeps - exclude cyclops (1 eye) and eyesClosed faces
+  if (name) return `https://api.dicebear.com/9.x/open-peeps/svg?seed=${encodeURIComponent(name)}&face=angryWithFang,awe,blank,calm,cheeky,concerned,concernedFear,contempt,cute,driven,eatingHappy,explaining,fear,hectic,lovingGrin1,lovingGrin2,monster,old,rage,serious,smile,smileBig,smileLOL,smileTeethGap,solemn,suspicious,tired,veryAngry&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
   return null;
 };
 

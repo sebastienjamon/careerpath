@@ -161,8 +161,8 @@ const getContactAvatarUrl = (contact: { name: string; email?: string | null; pho
     if (contact.photo_url) return contact.photo_url;
     if (contact.email) return `https://unavatar.io/${encodeURIComponent(contact.email)}?fallback=false`;
   }
-  // DiceBear notionists-neutral - clean, consistent illustrated avatars
-  return `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(contact.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  // DiceBear open-peeps - exclude cyclops (1 eye) and eyesClosed faces
+  return `https://api.dicebear.com/9.x/open-peeps/svg?seed=${encodeURIComponent(contact.name)}&face=angryWithFang,awe,blank,calm,cheeky,concerned,concernedFear,contempt,cute,driven,eatingHappy,explaining,fear,hectic,lovingGrin1,lovingGrin2,monster,old,rage,serious,smile,smileBig,smileLOL,smileTeethGap,solemn,suspicious,tired,veryAngry&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
 };
 
 export default function ProcessDetailPage() {
