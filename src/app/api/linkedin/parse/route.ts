@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
     try {
       const { extractText } = await import("unpdf");
       const { text } = await extractText(buffer);
-      pdfText = text;
+      // text is an array of strings (one per page), join them
+      pdfText = Array.isArray(text) ? text.join("\n") : text;
     } catch (pdfError) {
       console.error("PDF parsing error:", pdfError);
       return NextResponse.json({ error: "Failed to read PDF file. Please ensure it's a valid PDF." }, { status: 400 });
