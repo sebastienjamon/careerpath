@@ -1180,26 +1180,15 @@ export default function JourneyPage() {
             return ote.toString();
           };
 
-          // Fun color palette for price tags
-          const tagColors = [
-            { bg: "#dbeafe", border: "#3b82f6", text: "#1d4ed8" },   // Blue
-            { bg: "#f3e8ff", border: "#a855f7", text: "#7c3aed" },   // Purple
-            { bg: "#fce7f3", border: "#ec4899", text: "#be185d" },   // Pink
-            { bg: "#d1fae5", border: "#10b981", text: "#047857" },   // Green
-            { bg: "#ffedd5", border: "#f97316", text: "#c2410c" },   // Orange
-            { bg: "#fef3c7", border: "#f59e0b", text: "#b45309" },   // Amber
-            { bg: "#e0e7ff", border: "#6366f1", text: "#4338ca" },   // Indigo
-            { bg: "#ccfbf1", border: "#14b8a6", text: "#0f766e" },   // Teal
-          ];
+          // Consistent green color for all price tags (money theme)
+          const tagColor = { bg: "#dcfce7", border: "#22c55e", text: "#15803d" };
 
           const CustomDot = (props: { cx?: number; cy?: number; payload?: typeof chartData[0]; index?: number }) => {
-            const { cx, cy, payload, index } = props;
+            const { cx, cy, payload } = props;
             if (!cx || !cy || !payload) return null;
 
             const currencySymbol = CURRENCIES.find(c => c.value === payload.currency)?.symbol || "$";
             const oteLabel = payload.ote ? `${currencySymbol}${formatOteShort(payload.ote)}` : "";
-            const colorIndex = (index || 0) % tagColors.length;
-            const colors = tagColors[colorIndex];
 
             const tagWidth = oteLabel.length * 8 + 16;
             const tagHeight = 24;
@@ -1226,7 +1215,7 @@ export default function JourneyPage() {
                       y1={cy + 20}
                       x2={cx}
                       y2={cy + 30}
-                      stroke={colors.border}
+                      stroke={tagColor.border}
                       strokeWidth={2}
                     />
                     {/* Tag body */}
@@ -1236,25 +1225,16 @@ export default function JourneyPage() {
                       width={tagWidth}
                       height={tagHeight}
                       rx={4}
-                      fill={colors.bg}
-                      stroke={colors.border}
+                      fill={tagColor.bg}
+                      stroke={tagColor.border}
                       strokeWidth={1.5}
-                    />
-                    {/* Small hole circle */}
-                    <circle
-                      cx={cx - tagWidth / 2 + 8}
-                      cy={cy + 42}
-                      r={3}
-                      fill="white"
-                      stroke={colors.border}
-                      strokeWidth={1}
                     />
                     {/* Price text */}
                     <text
-                      x={cx + 4}
+                      x={cx}
                       y={cy + 46}
                       textAnchor="middle"
-                      fill={colors.text}
+                      fill={tagColor.text}
                       fontSize={12}
                       fontWeight={700}
                     >
@@ -1266,7 +1246,7 @@ export default function JourneyPage() {
             );
           };
 
-          // Custom label to show percentage change along the line between points
+          // Custom label to show percentage change as a "step" above the line between points
           const CustomLabel = (props: { x?: number; y?: number; index?: number; value?: number; viewBox?: { x: number; y: number; width: number; height: number } }) => {
             const { x, y, index, viewBox } = props;
             if (!x || !y || index === undefined || index === 0 || !viewBox) return null;
@@ -1275,39 +1255,52 @@ export default function JourneyPage() {
             const prevData = chartData[index - 1];
             if (!currentData?.percentChange || !prevData) return null;
 
-            // Calculate midpoint X position
+            // Calculate midpoint X position between two data points
             const pointSpacing = viewBox.width / (chartData.length - 1 || 1);
             const midX = x - pointSpacing / 2;
 
             // Calculate midpoint Y position along the line
-            // Y scale: viewBox.y is top, viewBox.y + viewBox.height is bottom (where 0 is)
             const yScale = viewBox.height / (maxOte + padding);
             const prevY = viewBox.y + viewBox.height - (prevData.ote || 0) * yScale;
             const currY = y;
             const midY = (prevY + currY) / 2;
+
+            // Position the step badge ABOVE the line (offset up by 35px)
+            const stepY = midY - 35;
 
             const isPositive = currentData.percentChange >= 0;
             const label = `${isPositive ? "+" : ""}${Math.round(currentData.percentChange)}%`;
 
             return (
               <g>
-                <rect
-                  x={midX - 26}
-                  y={midY - 12}
-                  width={52}
-                  height={22}
-                  rx={11}
-                  fill={isPositive ? "#dcfce7" : "#fee2e2"}
+                {/* Connector line from badge to the actual line */}
+                <line
+                  x1={midX}
+                  y1={stepY + 12}
+                  x2={midX}
+                  y2={midY}
                   stroke={isPositive ? "#86efac" : "#fca5a5"}
-                  strokeWidth={1}
+                  strokeWidth={2}
+                  strokeDasharray="3 2"
+                />
+                {/* Step badge */}
+                <rect
+                  x={midX - 28}
+                  y={stepY - 12}
+                  width={56}
+                  height={24}
+                  rx={12}
+                  fill={isPositive ? "#dcfce7" : "#fee2e2"}
+                  stroke={isPositive ? "#22c55e" : "#ef4444"}
+                  strokeWidth={1.5}
                 />
                 <text
                   x={midX}
-                  y={midY + 4}
+                  y={stepY + 4}
                   textAnchor="middle"
                   fill={isPositive ? "#16a34a" : "#dc2626"}
-                  fontSize={12}
-                  fontWeight={600}
+                  fontSize={13}
+                  fontWeight={700}
                 >
                   {label}
                 </text>
