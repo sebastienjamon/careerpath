@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2, List, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 
 import { toast } from "sonner";
 
@@ -1158,20 +1158,34 @@ export default function JourneyPage() {
             );
           }
 
-          const chartData = experiencesWithOte.map(exp => ({
-            date: new Date(exp.start_date).getTime(),
-            year: new Date(exp.start_date).getFullYear(),
-            ote: exp.ote,
-            currency: exp.currency || "USD",
-            company: exp.company_name,
-            title: exp.job_title,
-            logo: getCompanyLogoUrl(exp.company_website),
-            isCurrent: exp.is_current,
-          }));
+          const chartData = experiencesWithOte.map((exp, index) => {
+            const prevOte = index > 0 ? experiencesWithOte[index - 1].ote : null;
+            const percentChange = prevOte && exp.ote ? ((exp.ote - prevOte) / prevOte) * 100 : null;
+            return {
+              date: new Date(exp.start_date).getTime(),
+              year: new Date(exp.start_date).getFullYear(),
+              ote: exp.ote,
+              currency: exp.currency || "USD",
+              company: exp.company_name,
+              title: exp.job_title,
+              logo: getCompanyLogoUrl(exp.company_website),
+              isCurrent: exp.is_current,
+              percentChange,
+            };
+          });
 
-          const CustomDot = (props: { cx?: number; cy?: number; payload?: typeof chartData[0] }) => {
+          const formatOteShort = (ote: number) => {
+            if (ote >= 1000000) return `${(ote / 1000000).toFixed(1)}M`;
+            if (ote >= 1000) return `${Math.round(ote / 1000)}k`;
+            return ote.toString();
+          };
+
+          const CustomDot = (props: { cx?: number; cy?: number; payload?: typeof chartData[0]; index?: number }) => {
             const { cx, cy, payload } = props;
             if (!cx || !cy || !payload) return null;
+
+            const currencySymbol = CURRENCIES.find(c => c.value === payload.currency)?.symbol || "$";
+            const oteLabel = payload.ote ? `${currencySymbol}${formatOteShort(payload.ote)}` : "";
 
             return (
               <g>
@@ -1186,6 +1200,58 @@ export default function JourneyPage() {
                     clipPath="inset(0% round 4px)"
                   />
                 )}
+                {/* OTE label below the dot */}
+                {payload.ote && (
+                  <text
+                    x={cx}
+                    y={cy + 35}
+                    textAnchor="middle"
+                    fill="#334155"
+                    fontSize={12}
+                    fontWeight={600}
+                  >
+                    {oteLabel}
+                  </text>
+                )}
+              </g>
+            );
+          };
+
+          // Custom label to show percentage change along the line between points
+          const CustomLabel = (props: { x?: number; y?: number; index?: number; value?: number; viewBox?: { x: number; width: number } }) => {
+            const { x, y, index, viewBox } = props;
+            if (!x || !y || index === undefined || index === 0 || !viewBox) return null;
+
+            const currentData = chartData[index];
+            const prevData = chartData[index - 1];
+            if (!currentData?.percentChange || !prevData) return null;
+
+            // Calculate midpoint position (offset left toward previous point)
+            const pointSpacing = viewBox.width / (chartData.length - 1 || 1);
+            const midX = x - pointSpacing / 2;
+            const isPositive = currentData.percentChange >= 0;
+            const label = `${isPositive ? "+" : ""}${Math.round(currentData.percentChange)}%`;
+
+            return (
+              <g>
+                <rect
+                  x={midX - 24}
+                  y={y - 32}
+                  width={48}
+                  height={20}
+                  rx={10}
+                  fill={isPositive ? "#dcfce7" : "#fee2e2"}
+                />
+                <text
+                  x={midX}
+                  y={y - 18}
+                  textAnchor="middle"
+                  fill={isPositive ? "#16a34a" : "#dc2626"}
+                  fontSize={11}
+                  fontWeight={600}
+                >
+                  {label}
+                </text>
               </g>
             );
           };
@@ -1223,7 +1289,7 @@ export default function JourneyPage() {
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
+                    <LineChart data={chartData} margin={{ top: 40, right: 30, left: 20, bottom: 40 }}>
                       <XAxis
                         dataKey="year"
                         axisLine={false}
@@ -1249,7 +1315,9 @@ export default function JourneyPage() {
                         strokeWidth={3}
                         dot={<CustomDot />}
                         activeDot={{ r: 24, fill: "#3b82f6", stroke: "white", strokeWidth: 3 }}
-                      />
+                      >
+                        <LabelList content={<CustomLabel />} />
+                      </Line>
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
