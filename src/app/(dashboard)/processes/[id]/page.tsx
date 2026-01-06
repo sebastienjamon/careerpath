@@ -1077,56 +1077,189 @@ export default function ProcessDetailPage() {
 
                             {/* Collapsible Content */}
                             {expandedSteps[step.id] && (
-                              <div className="mt-3">
+                              <div className="mt-4 space-y-4">
 
-                            {step.google_calendar_event_id && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <Badge variant="outline" className="text-xs gap-1 bg-blue-50 text-blue-700 border-blue-200">
-                                  <Calendar className="h-3 w-3" />
-                                  {step.google_calendar_event_summary || "Calendar Event"}
-                                </Badge>
-                                <button
-                                  onClick={() => handleUnlinkCalendarEvent(step.id)}
-                                  className="text-xs text-slate-400 hover:text-red-500"
-                                >
-                                  Unlink
-                                </button>
+                            {/* Section 1: Contacts & Files (2 columns) */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Contacts */}
+                              <div className="p-3 bg-slate-50 rounded-lg">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-slate-600" />
+                                    <span className="text-sm font-semibold text-slate-900">Interviewers</span>
+                                  </div>
+                                  <button
+                                    onClick={() => handleAddContact(step.id)}
+                                    className="h-6 w-6 rounded-full bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors border"
+                                    title="Add contact"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                {stepContacts.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {stepContacts.map(contact => {
+                                      const hasCustomAvatar = contact.photo_url || contact.email;
+                                      const avatarUrl = contactAvatarErrors[contact.id]
+                                        ? getContactAvatarUrl(contact, true)
+                                        : getContactAvatarUrl(contact);
+                                      return (
+                                        <div key={contact.id} className="flex items-center justify-between p-2 bg-white rounded-lg border">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <div className="h-8 w-8 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
+                                              <img
+                                                src={avatarUrl}
+                                                alt={contact.name}
+                                                className="h-full w-full object-cover"
+                                                onError={() => {
+                                                  if (hasCustomAvatar && !contactAvatarErrors[contact.id]) {
+                                                    setContactAvatarErrors(prev => ({ ...prev, [contact.id]: true }));
+                                                  }
+                                                }}
+                                              />
+                                            </div>
+                                            <div className="min-w-0">
+                                              <p className="text-sm font-medium text-slate-900 truncate">{contact.name}</p>
+                                              {contact.role && (
+                                                <p className="text-xs text-slate-500 truncate">{contact.role}</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-1 flex-shrink-0">
+                                            {contact.linkedin_url && (
+                                              <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 p-1">
+                                                <Linkedin className="h-3.5 w-3.5" />
+                                              </a>
+                                            )}
+                                            <button onClick={() => handleEditContact(contact, step.id)} className="text-slate-400 hover:text-slate-600 p-1">
+                                              <Edit2 className="h-3 w-3" />
+                                            </button>
+                                            <button onClick={() => handleDeleteContact(contact.id, step.id)} className="text-slate-400 hover:text-red-600 p-1">
+                                              <Trash2 className="h-3 w-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-slate-400 italic">No interviewers added yet</p>
+                                )}
                               </div>
-                            )}
 
-                            {step.meeting_url && (
-                              <a
-                                href={step.meeting_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium transition-colors"
-                              >
-                                <Video className="h-4 w-4" />
-                                Join Meeting
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-
-                            {/* Interview Purpose */}
-                            {step.description && (
-                              <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                                <p className="text-sm text-blue-800">{step.description}</p>
+                              {/* Files */}
+                              <div className="p-3 bg-slate-50 rounded-lg">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-slate-600" />
+                                    <span className="text-sm font-semibold text-slate-900">Documents</span>
+                                  </div>
+                                  <label className="h-6 w-6 rounded-full bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors cursor-pointer border">
+                                    <Upload className="h-3 w-3" />
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleFileUpload(step.id, file);
+                                        e.target.value = '';
+                                      }}
+                                      disabled={isUploading}
+                                    />
+                                  </label>
+                                </div>
+                                {stepAttachments.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {stepAttachments.map(attachment => (
+                                      <div key={attachment.id} className="flex items-center justify-between p-2 bg-white rounded-lg border">
+                                        <a
+                                          href={attachment.file_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center gap-2 flex-1 min-w-0 hover:text-blue-600 transition-colors"
+                                        >
+                                          <div className="h-7 w-7 rounded bg-slate-100 flex items-center justify-center text-xs font-semibold text-slate-600 flex-shrink-0">
+                                            {getFileIcon(attachment.file_type)}
+                                          </div>
+                                          <div className="min-w-0">
+                                            <p className="text-sm font-medium text-slate-900 truncate">{attachment.file_name}</p>
+                                            <p className="text-xs text-slate-500">{formatFileSize(attachment.file_size)}</p>
+                                          </div>
+                                        </a>
+                                        <button
+                                          onClick={() => handleDeleteAttachment(attachment)}
+                                          className="text-slate-400 hover:text-red-600 p-1 flex-shrink-0"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-slate-400 italic">No documents attached</p>
+                                )}
                               </div>
-                            )}
+                            </div>
 
-                            {step.notes && (
-                              <p className="text-sm text-slate-500 mt-3 italic">{step.notes}</p>
-                            )}
+                            {/* Section 2: Interview Details */}
+                            <div className="space-y-3">
+                              {/* Calendar & Meeting Link */}
+                              {(step.google_calendar_event_id || step.meeting_url) && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {step.google_calendar_event_id && (
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs gap-1 bg-blue-50 text-blue-700 border-blue-200">
+                                        <Calendar className="h-3 w-3" />
+                                        {step.google_calendar_event_summary || "Calendar Event"}
+                                      </Badge>
+                                      <button
+                                        onClick={() => handleUnlinkCalendarEvent(step.id)}
+                                        className="text-xs text-slate-400 hover:text-red-500"
+                                      >
+                                        Unlink
+                                      </button>
+                                    </div>
+                                  )}
+                                  {step.meeting_url && (
+                                    <a
+                                      href={step.meeting_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                      <Video className="h-4 w-4" />
+                                      Join Meeting
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
+                              )}
 
-                            {step.outcome && (
-                              <div className="mt-3 p-3 bg-slate-100 rounded-lg">
-                                <p className="text-sm font-medium text-slate-700 mb-1">Outcome:</p>
-                                <p className="text-sm text-slate-600">{step.outcome}</p>
-                              </div>
-                            )}
+                              {/* Interview Purpose */}
+                              {step.description && (
+                                <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                  <p className="text-xs font-semibold text-blue-700 mb-1">Interview Purpose</p>
+                                  <p className="text-sm text-blue-800">{step.description}</p>
+                                </div>
+                              )}
 
-                            {/* AI Recommendations Section */}
-                            <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-lg">
+                              {/* Notes */}
+                              {step.notes && (
+                                <p className="text-sm text-slate-500 italic">{step.notes}</p>
+                              )}
+
+                              {/* Outcome */}
+                              {step.outcome && (
+                                <div className="p-3 bg-slate-100 rounded-lg">
+                                  <p className="text-xs font-semibold text-slate-700 mb-1">Outcome</p>
+                                  <p className="text-sm text-slate-600">{step.outcome}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Section 3: AI Recommendations */}
+                            <div className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-lg">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                   <Sparkles className="h-4 w-4 text-purple-600" />
@@ -1194,13 +1327,13 @@ export default function ProcessDetailPage() {
                               )}
                             </div>
 
-                            {/* Preparation Notes Section */}
-                            <div className="mt-4">
-                              <div className="flex items-center justify-between mb-2">
+                            {/* Section 4: Preparation Notes */}
+                            <div className="p-4 border rounded-lg bg-white">
+                              <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                   <BookOpen className="h-4 w-4 text-slate-600" />
                                   <span className="text-sm font-semibold text-slate-900">Your Preparation Notes</span>
-                                  <span className="text-xs text-slate-400">(Markdown supported)</span>
+                                  <span className="text-xs text-slate-400">(Markdown)</span>
                                 </div>
                                 <div className="flex items-center gap-1 bg-slate-100 rounded-md p-0.5">
                                   <button
@@ -1230,7 +1363,7 @@ export default function ProcessDetailPage() {
                                 </div>
                               </div>
                               {notesPreviewMode[step.id] ? (
-                                <div className="min-h-[120px] p-3 border rounded-md bg-white prose prose-sm prose-slate max-w-none">
+                                <div className="min-h-[100px] p-3 border rounded-md bg-slate-50 prose prose-sm prose-slate max-w-none">
                                   {step.preparation_notes ? (
                                     <ReactMarkdown>{step.preparation_notes}</ReactMarkdown>
                                   ) : (
@@ -1241,147 +1374,14 @@ export default function ProcessDetailPage() {
                                 <Textarea
                                   value={step.preparation_notes || ""}
                                   onChange={(e) => {
-                                    // Update local state immediately for responsive UI
                                     setSteps(prev => prev.map(s =>
                                       s.id === step.id ? { ...s, preparation_notes: e.target.value } : s
                                     ));
                                   }}
                                   onBlur={(e) => handleSavePreparationNotes(step.id, e.target.value)}
-                                  placeholder="Take notes here to prepare for this interview...&#10;&#10;**Supports Markdown:**&#10;- Use **bold** and *italic*&#10;- Create bullet lists&#10;- Add [links](url)"
-                                  className="min-h-[120px] resize-y font-mono text-sm"
+                                  placeholder="Your notes for this interview...&#10;&#10;**Markdown supported** - use *italic*, **bold**, - lists"
+                                  className="min-h-[100px] resize-y font-mono text-sm"
                                 />
-                              )}
-                            </div>
-
-                            {/* Contacts Section */}
-                            <div className="mt-4">
-                              <div className="flex items-center gap-2 text-sm text-slate-600">
-                                <Users className="h-4 w-4" />
-                                <span>{stepContacts.length} contact{stepContacts.length !== 1 ? 's' : ''}</span>
-                                <button
-                                  onClick={() => handleAddContact(step.id)}
-                                  className="h-5 w-5 rounded-full bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors"
-                                  title="Add contact"
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                              </div>
-
-                              {stepContacts.length > 0 && (
-                                <div className="mt-3 space-y-2">
-                                  {stepContacts.map(contact => {
-                                    const hasCustomAvatar = contact.photo_url || contact.email;
-                                    const avatarUrl = contactAvatarErrors[contact.id]
-                                      ? getContactAvatarUrl(contact, true)
-                                      : getContactAvatarUrl(contact);
-                                    return (
-                                      <div key={contact.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                                        <div className="flex items-center gap-3">
-                                          <div className="h-10 w-10 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
-                                            <img
-                                              src={avatarUrl}
-                                              alt={contact.name}
-                                              className="h-full w-full object-cover"
-                                              onError={() => {
-                                                if (hasCustomAvatar && !contactAvatarErrors[contact.id]) {
-                                                  setContactAvatarErrors(prev => ({ ...prev, [contact.id]: true }));
-                                                }
-                                              }}
-                                            />
-                                          </div>
-                                          <div>
-                                            <p className="text-sm font-medium text-slate-900">{contact.name}</p>
-                                            {contact.role && (
-                                              <p className="text-xs text-slate-500">{contact.role}</p>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-2 ml-2">
-                                            {contact.email && (
-                                              <a href={`mailto:${contact.email}`} className="text-slate-400 hover:text-slate-600 transition-colors">
-                                                <Mail className="h-4 w-4" />
-                                              </a>
-                                            )}
-                                            {contact.linkedin_url && (
-                                              <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
-                                                <Linkedin className="h-4 w-4" />
-                                              </a>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleEditContact(contact, step.id)}
-                                          >
-                                            <Edit2 className="h-3 w-3" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleDeleteContact(contact.id, step.id)}
-                                            className="text-red-600 hover:text-red-700"
-                                          >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Attachments Section */}
-                            <div className="mt-4">
-                              <div className="flex items-center gap-2 text-sm text-slate-600">
-                                <FileText className="h-4 w-4" />
-                                <span>{stepAttachments.length} file{stepAttachments.length !== 1 ? 's' : ''}</span>
-                                <label className="h-5 w-5 rounded-full bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors cursor-pointer">
-                                  <Upload className="h-3 w-3" />
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handleFileUpload(step.id, file);
-                                      e.target.value = '';
-                                    }}
-                                    disabled={isUploading}
-                                  />
-                                </label>
-                              </div>
-
-                              {stepAttachments.length > 0 && (
-                                <div className="mt-3 space-y-2">
-                                  {stepAttachments.map(attachment => (
-                                    <div key={attachment.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                                      <a
-                                        href={attachment.file_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-3 flex-1 hover:text-blue-600 transition-colors"
-                                      >
-                                        <div className="h-8 w-8 rounded bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600">
-                                          {getFileIcon(attachment.file_type)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium text-slate-900 truncate">{attachment.file_name}</p>
-                                          <p className="text-xs text-slate-500">{formatFileSize(attachment.file_size)}</p>
-                                        </div>
-                                      </a>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeleteAttachment(attachment)}
-                                        className="text-slate-400 hover:text-red-600"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
                               )}
                             </div>
                               </div>
