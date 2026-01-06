@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2, List, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
+import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2, List, LineChart as LineChartIcon, TrendingUp, Target } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Customized } from "recharts";
 
 import { toast } from "sonner";
@@ -78,6 +78,17 @@ interface CareerExperience {
   updated_at: string;
 }
 
+interface RecruitmentProcess {
+  id: string;
+  company_name: string;
+  company_website: string | null;
+  job_title: string;
+  status: string;
+  applied_date: string | null;
+  created_at: string;
+  process_steps: { id: string }[];
+}
+
 const CURRENCIES = [
   { value: "USD", label: "USD ($)", symbol: "$" },
   { value: "EUR", label: "EUR (€)", symbol: "€" },
@@ -123,6 +134,7 @@ const getCompanyLogoUrl = (website: string | null): string | null => {
 export default function JourneyPage() {
   const supabase = createClient();
   const [experiences, setExperiences] = useState<CareerExperience[]>([]);
+  const [processes, setProcesses] = useState<RecruitmentProcess[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExperience, setEditingExperience] = useState<CareerExperience | null>(null);
@@ -235,18 +247,27 @@ export default function JourneyPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from("career_experiences")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("start_date", { ascending: false });
+    // Fetch experiences and processes in parallel
+    const [experiencesResult, processesResult] = await Promise.all([
+      supabase
+        .from("career_experiences")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("start_date", { ascending: false }),
+      supabase
+        .from("recruitment_processes")
+        .select("id, company_name, company_website, job_title, status, applied_date, created_at, process_steps(id)")
+        .eq("user_id", user.id)
+        .order("applied_date", { ascending: true, nullsFirst: false })
+    ]);
 
-    if (error) {
+    if (experiencesResult.error) {
       toast.error("Failed to load experiences");
       return;
     }
 
-    setExperiences(data || []);
+    setExperiences(experiencesResult.data || []);
+    setProcesses((processesResult.data as RecruitmentProcess[]) || []);
     setIsLoading(false);
   };
 
@@ -1136,7 +1157,8 @@ export default function JourneyPage() {
         </div>
       ) : (
         // Chart View
-        (() => {
+        <div className="space-y-6">
+        {(() => {
           const experiencesWithOte = experiences
             .filter(exp => exp.ote)
             .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
@@ -1433,7 +1455,237 @@ export default function JourneyPage() {
               </CardContent>
             </Card>
           );
-        })()
+        })()}
+
+        {/* Interview Activity Chart */}
+        {(() => {
+          // Filter processes that have a date
+          const processesWithDate = processes
+            .filter(p => p.applied_date || p.created_at)
+            .sort((a, b) => {
+              const dateA = new Date(a.applied_date || a.created_at).getTime();
+              const dateB = new Date(b.applied_date || b.created_at).getTime();
+              return dateA - dateB;
+            });
+
+          if (processesWithDate.length === 0) {
+            return (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Target className="h-12 w-12 text-slate-300 mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900">No interview data yet</h3>
+                  <p className="text-slate-500 mt-1 mb-4 text-center max-w-md">
+                    Start tracking recruitment processes to see your interview activity
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          const processChartData = processesWithDate.map((proc) => {
+            const date = new Date(proc.applied_date || proc.created_at);
+            return {
+              date: date.getTime(),
+              month: date.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+              steps: proc.process_steps?.length || 0,
+              company: proc.company_name,
+              title: proc.job_title,
+              status: proc.status,
+              logo: getCompanyLogoUrl(proc.company_website),
+              id: proc.id,
+            };
+          });
+
+          const maxSteps = Math.max(...processChartData.map(d => d.steps), 1);
+
+          // Status colors
+          const getStatusColor = (status: string) => {
+            switch (status) {
+              case "in_progress":
+                return { bg: "#fef9c3", border: "#eab308", text: "#a16207" };
+              case "offer_received":
+              case "accepted":
+                return { bg: "#dcfce7", border: "#22c55e", text: "#15803d" };
+              case "rejected":
+              case "withdrawn":
+                return { bg: "#fee2e2", border: "#ef4444", text: "#dc2626" };
+              default:
+                return { bg: "#f1f5f9", border: "#94a3b8", text: "#475569" };
+            }
+          };
+
+          const formatStatus = (status: string) => {
+            return status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          };
+
+          const ProcessDot = (props: { cx?: number; cy?: number; payload?: typeof processChartData[0] }) => {
+            const { cx, cy, payload } = props;
+            if (!cx || !cy || !payload) return null;
+
+            const statusColor = getStatusColor(payload.status);
+            const statusLabel = formatStatus(payload.status);
+            const tagWidth = statusLabel.length * 7 + 16;
+
+            return (
+              <g>
+                {/* Company logo circle */}
+                <circle cx={cx} cy={cy} r={20} fill="white" stroke="#e2e8f0" strokeWidth={2} />
+                {payload.logo && (
+                  <image
+                    x={cx - 12}
+                    y={cy - 12}
+                    width={24}
+                    height={24}
+                    href={payload.logo}
+                    clipPath="inset(0% round 4px)"
+                  />
+                )}
+                {/* Status tag below */}
+                <g>
+                  <line
+                    x1={cx}
+                    y1={cy + 20}
+                    x2={cx}
+                    y2={cy + 30}
+                    stroke={statusColor.border}
+                    strokeWidth={2}
+                  />
+                  <rect
+                    x={cx - tagWidth / 2}
+                    y={cy + 30}
+                    width={tagWidth}
+                    height={24}
+                    rx={4}
+                    fill={statusColor.bg}
+                    stroke={statusColor.border}
+                    strokeWidth={1.5}
+                  />
+                  <text
+                    x={cx}
+                    y={cy + 46}
+                    textAnchor="middle"
+                    fill={statusColor.text}
+                    fontSize={11}
+                    fontWeight={600}
+                  >
+                    {statusLabel}
+                  </text>
+                </g>
+              </g>
+            );
+          };
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const ProcessAxisArrows = (props: any) => {
+            const { xAxisMap, yAxisMap } = props;
+            if (!xAxisMap || !yAxisMap) return null;
+
+            const xAxis = Object.values(xAxisMap)[0] as { x: number; y: number; width: number } | undefined;
+            const yAxis = Object.values(yAxisMap)[0] as { x: number; y: number; height: number } | undefined;
+            if (!xAxis || !yAxis) return null;
+
+            return (
+              <g>
+                <polygon
+                  points={`${xAxis.x + xAxis.width},${xAxis.y} ${xAxis.x + xAxis.width - 8},${xAxis.y - 4} ${xAxis.x + xAxis.width - 8},${xAxis.y + 4}`}
+                  fill="#94a3b8"
+                />
+                <polygon
+                  points={`${yAxis.x},${yAxis.y - yAxis.height} ${yAxis.x - 4},${yAxis.y - yAxis.height + 8} ${yAxis.x + 4},${yAxis.y - yAxis.height + 8}`}
+                  fill="#94a3b8"
+                />
+              </g>
+            );
+          };
+
+          const ProcessTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: typeof processChartData[0] }> }) => {
+            if (!active || !payload || !payload.length) return null;
+            const data = payload[0].payload;
+            return (
+              <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3 max-w-xs">
+                <p className="font-medium text-slate-900">{data.title}</p>
+                <p className="text-sm text-slate-600">{data.company}</p>
+                <p className="text-sm font-medium text-blue-600 mt-1">
+                  {data.steps} interview step{data.steps !== 1 ? "s" : ""}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">{data.month}</p>
+              </div>
+            );
+          };
+
+          // Stats
+          const totalProcesses = processChartData.length;
+          const totalSteps = processChartData.reduce((sum, p) => sum + p.steps, 0);
+          const avgSteps = totalProcesses > 0 ? (totalSteps / totalProcesses).toFixed(1) : "0";
+          const activeCount = processChartData.filter(p => p.status === "in_progress").length;
+
+          return (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Interview Activity
+                </CardTitle>
+                <CardDescription>
+                  Your recruitment processes over time
+                </CardDescription>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-blue-600">{totalProcesses}</p>
+                    <p className="text-xs text-slate-500">Processes</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">{totalSteps}</p>
+                    <p className="text-xs text-slate-500">Total Steps</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">{avgSteps}</p>
+                    <p className="text-xs text-slate-500">Avg. Steps</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-yellow-600">{activeCount}</p>
+                    <p className="text-xs text-slate-500">Active</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-96">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={processChartData} margin={{ top: 40, right: 30, left: 20, bottom: 80 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="month"
+                        axisLine={{ stroke: "#94a3b8" }}
+                        tickLine={false}
+                        tick={{ fill: "#475569", fontSize: 13, fontWeight: 600, dy: 25 }}
+                      />
+                      <YAxis
+                        domain={[0, maxSteps + 1]}
+                        axisLine={{ stroke: "#94a3b8" }}
+                        tickLine={false}
+                        tick={{ fill: "#475569", fontSize: 13, fontWeight: 600 }}
+                        allowDecimals={false}
+                      />
+                      <Tooltip content={<ProcessTooltip />} cursor={false} />
+                      <Customized component={ProcessAxisArrows} />
+                      <Line
+                        type="monotone"
+                        dataKey="steps"
+                        stroke="#8b5cf6"
+                        strokeWidth={3}
+                        dot={<ProcessDot />}
+                        activeDot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+        </div>
       )}
     </div>
   );
