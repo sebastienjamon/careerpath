@@ -55,6 +55,7 @@ import {
   ChevronUp,
   Eye,
   Pencil,
+  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -111,8 +112,45 @@ interface StepAttachment {
   file_type: string;
   file_size: number;
   file_url: string;
+  link_url: string | null;
+  link_type: string | null;
   created_at: string;
 }
+
+// Detect link type from URL
+const detectLinkType = (url: string): { type: string; name: string } => {
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('docs.google.com/document')) {
+    return { type: 'google_doc', name: 'Google Doc' };
+  } else if (lowerUrl.includes('docs.google.com/spreadsheets')) {
+    return { type: 'google_sheet', name: 'Google Sheet' };
+  } else if (lowerUrl.includes('docs.google.com/presentation')) {
+    return { type: 'google_slide', name: 'Google Slides' };
+  } else if (lowerUrl.includes('drive.google.com')) {
+    return { type: 'google_drive', name: 'Google Drive' };
+  } else if (lowerUrl.includes('dropbox.com')) {
+    return { type: 'dropbox', name: 'Dropbox' };
+  } else if (lowerUrl.includes('notion.so') || lowerUrl.includes('notion.site')) {
+    return { type: 'notion', name: 'Notion' };
+  } else if (lowerUrl.includes('figma.com')) {
+    return { type: 'figma', name: 'Figma' };
+  }
+  return { type: 'other', name: 'Link' };
+};
+
+// Get icon color for link type
+const getLinkTypeColor = (type: string | null): string => {
+  switch (type) {
+    case 'google_doc': return 'text-blue-600';
+    case 'google_sheet': return 'text-green-600';
+    case 'google_slide': return 'text-yellow-600';
+    case 'google_drive': return 'text-blue-500';
+    case 'dropbox': return 'text-blue-700';
+    case 'notion': return 'text-slate-800';
+    case 'figma': return 'text-purple-600';
+    default: return 'text-slate-500';
+  }
+};
 
 interface CalendarEvent {
   id: string;
@@ -217,6 +255,9 @@ export default function ProcessDetailPage() {
   const [eventPickerStepId, setEventPickerStepId] = useState<string | null>(null);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isImportMode, setIsImportMode] = useState(false);
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+  const [linkStepId, setLinkStepId] = useState<string | null>(null);
+  const [linkFormData, setLinkFormData] = useState({ url: "", name: "" });
   const [isUploading, setIsUploading] = useState(false);
 
   const [stepFormData, setStepFormData] = useState({
@@ -708,6 +749,40 @@ export default function ProcessDetailPage() {
 
     toast.success("File deleted");
     fetchAttachments(attachment.step_id);
+  };
+
+  const handleAddLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkStepId || !linkFormData.url) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const linkInfo = detectLinkType(linkFormData.url);
+    const fileName = linkFormData.name || linkInfo.name;
+
+    const { error } = await supabase
+      .from("step_attachments")
+      .insert({
+        step_id: linkStepId,
+        user_id: user.id,
+        file_name: fileName,
+        file_type: "link",
+        file_size: 0,
+        file_url: linkFormData.url,
+        link_url: linkFormData.url,
+        link_type: linkInfo.type,
+      });
+
+    if (error) {
+      toast.error("Failed to add link");
+      return;
+    }
+
+    toast.success("Link added");
+    setIsLinkDialogOpen(false);
+    setLinkFormData({ url: "", name: "" });
+    fetchAttachments(linkStepId);
   };
 
   const handleGenerateRecommendations = async (stepId: string) => {
@@ -1221,37 +1296,58 @@ export default function ProcessDetailPage() {
                                     <FileText className="h-4 w-4 text-slate-600" />
                                     <span className="text-sm font-semibold text-slate-900">Documents</span>
                                   </div>
-                                  <label className="h-6 w-6 rounded-full bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors cursor-pointer border">
-                                    <Upload className="h-3 w-3" />
-                                    <input
-                                      type="file"
-                                      className="hidden"
-                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.zip"
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) handleFileUpload(step.id, file);
-                                        e.target.value = '';
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => {
+                                        setLinkStepId(step.id);
+                                        setLinkFormData({ url: "", name: "" });
+                                        setIsLinkDialogOpen(true);
                                       }}
-                                      disabled={isUploading}
-                                    />
-                                  </label>
+                                      className="h-6 w-6 rounded-full bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors border"
+                                      title="Add link"
+                                    >
+                                      <Link2 className="h-3 w-3" />
+                                    </button>
+                                    <label className="h-6 w-6 rounded-full bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors cursor-pointer border">
+                                      <Upload className="h-3 w-3" />
+                                      <input
+                                        type="file"
+                                        className="hidden"
+                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.zip"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) handleFileUpload(step.id, file);
+                                          e.target.value = '';
+                                        }}
+                                        disabled={isUploading}
+                                      />
+                                    </label>
+                                  </div>
                                 </div>
                                 {stepAttachments.length > 0 ? (
                                   <div className="space-y-2">
                                     {stepAttachments.map(attachment => (
                                       <div key={attachment.id} className="flex items-center justify-between p-2 bg-white rounded-lg border">
                                         <a
-                                          href={attachment.file_url}
+                                          href={attachment.link_url || attachment.file_url}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="flex items-center gap-2 flex-1 min-w-0 hover:text-blue-600 transition-colors"
                                         >
-                                          <div className="h-7 w-7 rounded bg-slate-100 flex items-center justify-center text-xs font-semibold text-slate-600 flex-shrink-0">
-                                            {getFileIcon(attachment.file_type)}
+                                          <div className={`h-7 w-7 rounded bg-slate-100 flex items-center justify-center flex-shrink-0 ${attachment.link_type ? getLinkTypeColor(attachment.link_type) : 'text-slate-600'}`}>
+                                            {attachment.link_type ? (
+                                              <Link2 className="h-4 w-4" />
+                                            ) : (
+                                              <span className="text-xs font-semibold">{getFileIcon(attachment.file_type)}</span>
+                                            )}
                                           </div>
                                           <div className="min-w-0">
                                             <p className="text-sm font-medium text-slate-900 truncate">{attachment.file_name}</p>
-                                            <p className="text-xs text-slate-500">{formatFileSize(attachment.file_size)}</p>
+                                            <p className="text-xs text-slate-500">
+                                              {attachment.link_type
+                                                ? detectLinkType(attachment.link_url || '').name
+                                                : formatFileSize(attachment.file_size)}
+                                            </p>
                                           </div>
                                         </a>
                                         <button
@@ -1650,6 +1746,70 @@ export default function ProcessDetailPage() {
                   {editingContact ? "Update Notes" : "Add Contact"}
                 </Button>
               )}
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Dialog */}
+      <Dialog open={isLinkDialogOpen} onOpenChange={(open) => {
+        setIsLinkDialogOpen(open);
+        if (!open) setLinkFormData({ url: "", name: "" });
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Document Link</DialogTitle>
+            <DialogDescription>
+              Paste a link to a Google Doc, Drive, Notion, or other document
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddLink} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="link_url">Document URL *</Label>
+              <Input
+                id="link_url"
+                type="url"
+                value={linkFormData.url}
+                onChange={(e) => {
+                  const url = e.target.value;
+                  const linkInfo = detectLinkType(url);
+                  setLinkFormData(prev => ({
+                    ...prev,
+                    url,
+                    name: prev.name || (url && linkInfo.type !== 'other' ? linkInfo.name : ''),
+                  }));
+                }}
+                placeholder="https://docs.google.com/..."
+                required
+              />
+            </div>
+
+            {linkFormData.url && (
+              <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                <div className={`h-8 w-8 rounded flex items-center justify-center bg-white border ${getLinkTypeColor(detectLinkType(linkFormData.url).type)}`}>
+                  <Link2 className="h-4 w-4" />
+                </div>
+                <span className="text-sm text-slate-600">{detectLinkType(linkFormData.url).name}</span>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="link_name">Display Name <span className="text-slate-400 font-normal">(optional)</span></Label>
+              <Input
+                id="link_name"
+                value={linkFormData.name}
+                onChange={(e) => setLinkFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Interview Prep Doc"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsLinkDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Add Link
+              </Button>
             </div>
           </form>
         </DialogContent>
