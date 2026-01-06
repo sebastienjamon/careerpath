@@ -174,7 +174,7 @@ export default function ProcessesPage() {
           id, name, avatar_url, company, role
         )
       `)
-      .order("created_at", { ascending: false });
+      .order("applied_date", { ascending: false, nullsFirst: false });
 
     if (error) {
       toast.error("Failed to load processes");

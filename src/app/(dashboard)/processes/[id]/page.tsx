@@ -1103,12 +1103,43 @@ export default function ProcessDetailPage() {
                                 )}
                               </div>
 
-                              {step.scheduled_date && (
-                                <p className="text-sm text-slate-600 mt-1 flex items-center gap-1">
-                                  <Calendar className="h-4 w-4" />
-                                  {new Date(step.scheduled_date).toLocaleString()}
-                                </p>
-                              )}
+                              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                {step.scheduled_date && (
+                                  <p className="text-sm text-slate-600 flex items-center gap-1">
+                                    <Calendar className="h-4 w-4" />
+                                    {new Date(step.scheduled_date).toLocaleString()}
+                                  </p>
+                                )}
+                                {/* Interviewers preview */}
+                                {contacts[step.id]?.length > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="flex -space-x-2">
+                                      {contacts[step.id].slice(0, 3).map((contact, idx) => (
+                                        <img
+                                          key={contact.id}
+                                          src={getContactAvatarUrl(contact)}
+                                          alt={contact.name}
+                                          className="h-6 w-6 rounded-full border-2 border-white"
+                                          style={{ zIndex: 3 - idx }}
+                                          onError={(e) => {
+                                            e.currentTarget.src = getContactAvatarUrl(contact, true);
+                                          }}
+                                        />
+                                      ))}
+                                      {contacts[step.id].length > 3 && (
+                                        <div className="h-6 w-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-xs font-medium text-slate-600">
+                                          +{contacts[step.id].length - 3}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-slate-500">
+                                      {contacts[step.id].length === 1
+                                        ? contacts[step.id][0].name
+                                        : `${contacts[step.id].length} interviewers`}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             </button>
 
                             {/* Collapsible Content */}
