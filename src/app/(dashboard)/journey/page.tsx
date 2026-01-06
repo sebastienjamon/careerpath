@@ -1398,7 +1398,7 @@ export default function JourneyPage() {
                         stroke="#3b82f6"
                         strokeWidth={3}
                         dot={<CustomDot />}
-                        activeDot={{ r: 24, fill: "#3b82f6", stroke: "white", strokeWidth: 3 }}
+                        activeDot={false}
                       />
                     </LineChart>
                   </ResponsiveContainer>
