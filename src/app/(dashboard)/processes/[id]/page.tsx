@@ -119,6 +119,7 @@ interface StepContact {
   email: string | null;
   notes: string | null;
   photo_url: string | null;
+  network_connection_id: string | null;
 }
 
 const STEP_TYPE_OPTIONS = [
