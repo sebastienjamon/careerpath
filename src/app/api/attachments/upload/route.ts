@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
       "image/png",
       "image/jpeg",
       "text/plain",
+      "application/zip",
+      "application/x-zip-compressed",
     ];
 
     if (!allowedTypes.includes(file.type)) {
