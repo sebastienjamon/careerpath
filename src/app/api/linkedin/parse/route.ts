@@ -106,7 +106,7 @@ Extract all work experiences from the "Experience" section. For each experience,
 - start_date: Start date in YYYY-MM format (e.g., "2024-02" for February 2024)
 - end_date: End date in YYYY-MM format, or null if "Present" or current
 - is_current: true if this is the current job (end date is "Present")
-- description: The role description if provided, or null
+- description: Always null (do not extract role descriptions)
 - location: The location if provided, or null
 
 Also extract:

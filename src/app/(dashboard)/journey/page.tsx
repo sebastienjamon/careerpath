@@ -982,103 +982,82 @@ export default function JourneyPage() {
       ) : (
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-4 sm:left-5 top-0 bottom-0 w-0.5 bg-slate-200" />
+          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200" />
 
-          <div className="space-y-4 sm:space-y-6">
-            {experiences.map((experience, index) => (
-              <div key={experience.id} className="relative flex gap-3 sm:gap-6">
-                {/* Timeline dot with company logo */}
-                {(() => {
-                  const logoUrl = getCompanyLogoUrl(experience.company_website);
-                  const showLogo = logoUrl && !failedLogos.has(experience.id);
-                  return (
-                    <div
-                      className={`relative z-10 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg border shadow-sm overflow-hidden flex-shrink-0 ${
-                        showLogo
-                          ? "bg-white border-slate-200"
-                          : experience.is_current
-                          ? "bg-green-100 text-green-600 border-green-200"
-                          : "bg-blue-100 text-blue-600 border-blue-200"
-                      }`}
-                    >
-                      {showLogo ? (
-                        <img
-                          src={logoUrl}
-                          alt={`${experience.company_name} logo`}
-                          className="h-6 w-6 object-contain"
-                          onError={() => {
-                            setFailedLogos(prev => new Set(prev).add(experience.id));
-                          }}
-                        />
-                      ) : (
-                        <Briefcase className="h-4 w-4" />
-                      )}
-                    </div>
-                  );
-                })()}
+          <div className="space-y-1">
+            {experiences.map((experience) => {
+              const logoUrl = getCompanyLogoUrl(experience.company_website);
+              const showLogo = logoUrl && !failedLogos.has(experience.id);
+              return (
+                <div
+                  key={experience.id}
+                  className="relative flex items-center gap-3 py-2 pl-10 pr-2 rounded-lg hover:bg-slate-50 group"
+                >
+                  {/* Timeline dot with company logo */}
+                  <div
+                    className={`absolute left-1 flex h-6 w-6 items-center justify-center rounded border overflow-hidden flex-shrink-0 ${
+                      showLogo
+                        ? "bg-white border-slate-200"
+                        : experience.is_current
+                        ? "bg-green-100 text-green-600 border-green-200"
+                        : "bg-blue-100 text-blue-600 border-blue-200"
+                    }`}
+                  >
+                    {showLogo ? (
+                      <img
+                        src={logoUrl}
+                        alt=""
+                        className="h-4 w-4 object-contain"
+                        onError={() => {
+                          setFailedLogos(prev => new Set(prev).add(experience.id));
+                        }}
+                      />
+                    ) : (
+                      <Briefcase className="h-3 w-3" />
+                    )}
+                  </div>
 
-                {/* Content card */}
-                <Card className="flex-1 min-w-0">
-                  <CardHeader className="pb-2 p-3 sm:p-6 sm:pb-2">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="text-base sm:text-lg truncate">{experience.job_title}</CardTitle>
-                        <CardDescription className="flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate">{experience.company_name}</span>
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center gap-1 sm:gap-2">
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-900 truncate">{experience.job_title}</span>
                         {experience.is_current && (
-                          <Badge className="bg-green-100 text-green-700 text-xs">Current</Badge>
+                          <Badge className="bg-green-100 text-green-700 text-xs px-1.5 py-0">Current</Badge>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleEdit(experience)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDelete(experience.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <span className="truncate">{experience.company_name}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="whitespace-nowrap">
+                          {formatDate(experience.start_date)} - {experience.is_current ? "Present" : experience.end_date ? formatDate(experience.end_date) : "N/A"}
+                        </span>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-                    <div className="flex items-center gap-1 text-sm text-slate-500 mb-3">
-                      <Calendar className="h-3 w-3" />
-                      {formatDate(experience.start_date)} -{" "}
-                      {experience.is_current
-                        ? "Present"
-                        : experience.end_date
-                        ? formatDate(experience.end_date)
-                        : "N/A"}
-                    </div>
+                  </div>
 
-                    {experience.description && (
-                      <p className="text-sm text-slate-600 mb-3">{experience.description}</p>
-                    )}
-
-                    {experience.skills && experience.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {experience.skills.map((skill, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handleEdit(experience)}
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleDelete(experience.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
