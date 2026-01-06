@@ -59,16 +59,15 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Dynamic import to avoid build-time issues with pdf-parse
+    // Extract text from PDF using unpdf (serverless-compatible)
     let pdfText: string;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require("pdf-parse");
-      const pdfData = await pdfParse(buffer);
-      pdfText = pdfData.text;
+      const { extractText } = await import("unpdf");
+      const { text } = await extractText(buffer);
+      pdfText = text;
     } catch (pdfError) {
       console.error("PDF parsing error:", pdfError);
-      return NextResponse.json({ error: "Failed to read PDF file" }, { status: 400 });
+      return NextResponse.json({ error: "Failed to read PDF file. Please ensure it's a valid PDF." }, { status: 400 });
     }
 
     if (!pdfText || pdfText.trim().length < 50) {
