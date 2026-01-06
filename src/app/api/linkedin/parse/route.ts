@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
           resolve(text);
         });
 
-        pdfParser.on("pdfParser_dataError", (errMsg: { parserError: Error }) => {
-          reject(errMsg.parserError);
+        pdfParser.on("pdfParser_dataError", (errMsg: Error | { parserError: Error }) => {
+          reject(errMsg instanceof Error ? errMsg : errMsg.parserError);
         });
 
         pdfParser.parseBuffer(buffer);
