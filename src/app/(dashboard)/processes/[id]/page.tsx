@@ -801,6 +801,7 @@ export default function ProcessDetailPage() {
         file_type: "link",
         file_size: 0,
         file_url: linkFormData.url,
+        storage_path: null,
         link_url: linkFormData.url,
         link_type: linkInfo.type,
       });
