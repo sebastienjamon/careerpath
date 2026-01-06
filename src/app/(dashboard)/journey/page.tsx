@@ -1376,15 +1376,15 @@ export default function JourneyPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                       <XAxis
                         dataKey="year"
-                        axisLine={{ stroke: "#e2e8f0" }}
+                        axisLine={{ stroke: "#94a3b8", strokeWidth: 2 }}
                         tickLine={false}
-                        tick={{ fill: "#64748b", fontSize: 12, dy: 25 }}
+                        tick={{ fill: "#475569", fontSize: 13, fontWeight: 600, dy: 25 }}
                       />
                       <YAxis
                         domain={[0, maxOte + padding]}
-                        axisLine={{ stroke: "#e2e8f0" }}
+                        axisLine={{ stroke: "#94a3b8", strokeWidth: 2 }}
                         tickLine={false}
-                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        tick={{ fill: "#475569", fontSize: 13, fontWeight: 600 }}
                         tickFormatter={(value) => {
                           if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
                           if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
