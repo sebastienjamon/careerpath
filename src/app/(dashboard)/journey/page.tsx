@@ -1247,29 +1247,25 @@ export default function JourneyPage() {
           };
 
           // Render percentage badges at true midpoints between experiences
-          const PercentageBadges = (props: { xAxisMap?: Record<string, { scale: (v: number) => number }>; yAxisMap?: Record<string, { scale: (v: number) => number }> }) => {
-            const { xAxisMap, yAxisMap } = props;
-            if (!xAxisMap || !yAxisMap) return null;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const PercentageBadges = (props: any) => {
+            const { formattedGraphicalItems } = props;
+            if (!formattedGraphicalItems || !formattedGraphicalItems[0]) return null;
 
-            const xScale = Object.values(xAxisMap)[0]?.scale;
-            const yScale = Object.values(yAxisMap)[0]?.scale;
-            if (!xScale || !yScale) return null;
+            const points = formattedGraphicalItems[0]?.props?.points;
+            if (!points || points.length < 2) return null;
 
             return (
               <g>
-                {chartData.map((data, index) => {
-                  if (index === 0 || !data.percentChange) return null;
-                  const prevData = chartData[index - 1];
-
-                  // Get exact pixel positions for both points
-                  const x1 = xScale(prevData.year);
-                  const y1 = yScale(prevData.ote || 0);
-                  const x2 = xScale(data.year);
-                  const y2 = yScale(data.ote || 0);
+                {points.map((point: { x: number; y: number }, index: number) => {
+                  if (index === 0) return null;
+                  const prevPoint = points[index - 1];
+                  const data = chartData[index];
+                  if (!data?.percentChange) return null;
 
                   // True midpoint of the line segment
-                  const midX = (x1 + x2) / 2;
-                  const midY = (y1 + y2) / 2;
+                  const midX = (prevPoint.x + point.x) / 2;
+                  const midY = (prevPoint.y + point.y) / 2;
 
                   const isPositive = data.percentChange >= 0;
                   const label = `${isPositive ? "+" : ""}${Math.round(data.percentChange)}%`;
