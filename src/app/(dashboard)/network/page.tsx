@@ -95,12 +95,20 @@ export default function NetworkPage() {
   }, []);
 
   const fetchConnections = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("network_connections")
       .select("*")
+      .eq("user_id", user.id)
       .order("name", { ascending: true });
 
     if (error) {
+      console.error("Failed to load connections:", error);
       toast.error("Failed to load connections");
       return;
     }

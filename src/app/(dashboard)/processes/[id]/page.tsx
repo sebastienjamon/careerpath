@@ -426,6 +426,7 @@ export default function ProcessDetailPage() {
 
         if (networkError) {
           console.error("Failed to create network connection:", networkError);
+          toast.error(`Network sync failed: ${networkError.message}`);
         } else if (newConnection) {
           networkConnectionId = newConnection.id;
         }
