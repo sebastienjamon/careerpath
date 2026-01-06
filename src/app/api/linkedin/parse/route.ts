@@ -2,9 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-// pdf-parse doesn't have proper ESM exports, use dynamic require
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse");
+// Prevent static generation - this route uses pdf-parse which requires runtime
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // Dynamic import to avoid build-time issues with pdf-parse
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse");
     const pdfData = await pdfParse(buffer);
     const pdfText = pdfData.text;
 
