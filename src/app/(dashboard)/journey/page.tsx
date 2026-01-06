@@ -123,13 +123,6 @@ const getCompanyLogoUrl = (website: string | null): string | null => {
 export default function JourneyPage() {
   const supabase = createClient();
   const [experiences, setExperiences] = useState<CareerExperience[]>([]);
-  const [processes, setProcesses] = useState<Array<{
-    id: string;
-    company_name: string;
-    company_website: string | null;
-    status: string;
-    applied_date: string | null;
-  }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExperience, setEditingExperience] = useState<CareerExperience | null>(null);
@@ -155,7 +148,6 @@ export default function JourneyPage() {
     currency: "USD",
   });
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
-  const [showInterviews, setShowInterviews] = useState(true);
   const [failedLogos, setFailedLogos] = useState<Set<string>>(new Set());
 
   // LinkedIn PDF import state
@@ -243,28 +235,18 @@ export default function JourneyPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Fetch both experiences and recruitment processes
-    const [experiencesResult, processesResult] = await Promise.all([
-      supabase
-        .from("career_experiences")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("start_date", { ascending: false }),
-      supabase
-        .from("recruitment_processes")
-        .select("id, company_name, company_website, status, applied_date")
-        .eq("user_id", user.id)
-        .not("status", "eq", "accepted") // Exclude accepted (those became experiences)
-        .order("applied_date", { ascending: true }),
-    ]);
+    const { data, error } = await supabase
+      .from("career_experiences")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("start_date", { ascending: false });
 
-    if (experiencesResult.error) {
+    if (error) {
       toast.error("Failed to load experiences");
       return;
     }
 
-    setExperiences(experiencesResult.data || []);
-    setProcesses(processesResult.data || []);
+    setExperiences(data || []);
     setIsLoading(false);
   };
 
@@ -1324,124 +1306,6 @@ export default function JourneyPage() {
             );
           };
 
-          // Find interview processes that occurred between two career experiences
-          const getInterviewsBetween = (startDate: string, endDate: string) => {
-            return processes.filter(p => {
-              if (!p.applied_date) return false;
-              const appliedTime = new Date(p.applied_date).getTime();
-              const startTime = new Date(startDate).getTime();
-              const endTime = new Date(endDate).getTime();
-              return appliedTime >= startTime && appliedTime <= endTime;
-            });
-          };
-
-          // Component to render interview dots between experiences AND after last experience
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const InterviewDots = (props: any) => {
-            const { formattedGraphicalItems, xAxisMap, yAxisMap } = props;
-
-            // Try to get points from formattedGraphicalItems first
-            let points = formattedGraphicalItems?.[0]?.props?.points;
-
-            // If no points from formattedGraphicalItems, calculate from axis scales
-            if (!points || points.length < 1) {
-              const xAxis = xAxisMap && Object.values(xAxisMap)[0] as { scale?: (v: number) => number } | undefined;
-              const yAxis = yAxisMap && Object.values(yAxisMap)[0] as { scale?: (v: number) => number } | undefined;
-
-              if (xAxis?.scale && yAxis?.scale) {
-                points = chartData.map(d => ({
-                  x: xAxis.scale!(d.year),
-                  y: yAxis.scale!(d.ote || 0),
-                }));
-              }
-            }
-
-            if (!points || points.length < 1) return null;
-
-            const renderInterviewDot = (
-              interview: typeof processes[0],
-              x: number,
-              y: number,
-              key: string
-            ) => {
-              const logoUrl = interview.company_website
-                ? `https://www.google.com/s2/favicons?domain=${interview.company_website}&sz=64`
-                : null;
-
-              return (
-                <g key={key}>
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={12}
-                    fill="white"
-                    stroke={interview.status === "rejected" ? "#fca5a5" : "#e2e8f0"}
-                    strokeWidth={2}
-                    opacity={0.9}
-                  />
-                  {logoUrl && (
-                    <image
-                      x={x - 8}
-                      y={y - 8}
-                      width={16}
-                      height={16}
-                      href={logoUrl}
-                      clipPath="inset(0% round 2px)"
-                      opacity={0.8}
-                    />
-                  )}
-                </g>
-              );
-            };
-
-            return (
-              <g>
-                {/* Interviews BETWEEN experiences */}
-                {points.map((point: { x: number; y: number }, index: number) => {
-                  if (index === 0) return null;
-                  const prevPoint = points[index - 1];
-                  const prevExp = experiencesWithOte[index - 1];
-                  const currExp = experiencesWithOte[index];
-
-                  if (!prevExp || !currExp) return null;
-
-                  const prevEndDate = prevExp.is_current ? new Date().toISOString() : (prevExp.end_date || prevExp.start_date);
-                  const interviews = getInterviewsBetween(prevEndDate, currExp.start_date);
-
-                  if (interviews.length === 0) return null;
-
-                  return interviews.slice(0, 5).map((interview, i) => {
-                    const t = (i + 1) / (Math.min(interviews.length, 5) + 1);
-                    const x = prevPoint.x + t * (point.x - prevPoint.x);
-                    const y = prevPoint.y + t * (point.y - prevPoint.y);
-                    return renderInterviewDot(interview, x, y, `interview-${index}-${i}`);
-                  });
-                })}
-
-                {/* Interviews AFTER the last experience (or all recent ones) */}
-                {(() => {
-                  const lastPoint = points[points.length - 1];
-                  if (!lastPoint) return null;
-
-                  // Show all processes - they're recruitment attempts
-                  // Position them to the right of the last point
-                  if (processes.length === 0) return null;
-
-                  return processes.slice(0, 6).map((interview, i) => {
-                    const offsetX = 40 + (i % 3) * 30;
-                    const offsetY = Math.floor(i / 3) * 30 - 15;
-                    return renderInterviewDot(
-                      interview,
-                      lastPoint.x + offsetX,
-                      lastPoint.y + offsetY,
-                      `future-interview-${i}`
-                    );
-                  });
-                })()}
-              </g>
-            );
-          };
-
           // Arrows at the end of axes
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const AxisArrows = (props: any) => {
@@ -1499,28 +1363,13 @@ export default function JourneyPage() {
           return (
             <Card>
               <CardHeader className="pb-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      Compensation Progression
-                    </CardTitle>
-                    <CardDescription>
-                      Your salary growth over time
-                    </CardDescription>
-                  </div>
-                  {processes.length > 0 && (
-                    <button
-                      onClick={() => setShowInterviews(!showInterviews)}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <span className="text-slate-600">Interviews</span>
-                      <div className={`relative w-10 h-5 rounded-full transition-colors ${showInterviews ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showInterviews ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                      </div>
-                    </button>
-                  )}
-                </div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Compensation Progression
+                </CardTitle>
+                <CardDescription>
+                  Your salary growth over time
+                </CardDescription>
 
                 {/* Stats Row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t">
@@ -1568,9 +1417,8 @@ export default function JourneyPage() {
                           return value.toString();
                         }}
                       />
-                      <Tooltip content={<CustomTooltip />} />
+                      <Tooltip content={<CustomTooltip />} cursor={false} />
                       <Customized component={AxisArrows} />
-                      {showInterviews && <Customized component={InterviewDots} />}
                       <Line
                         type="monotone"
                         dataKey="ote"
