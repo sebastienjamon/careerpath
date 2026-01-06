@@ -155,6 +155,7 @@ export default function JourneyPage() {
     currency: "USD",
   });
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
+  const [showInterviews, setShowInterviews] = useState(true);
   const [failedLogos, setFailedLogos] = useState<Set<string>>(new Set());
 
   // LinkedIn PDF import state
@@ -1456,13 +1457,28 @@ export default function JourneyPage() {
           return (
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Compensation Progression
-                </CardTitle>
-                <CardDescription>
-                  Your salary growth over time
-                </CardDescription>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Compensation Progression
+                    </CardTitle>
+                    <CardDescription>
+                      Your salary growth over time
+                    </CardDescription>
+                  </div>
+                  {processes.length > 0 && (
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showInterviews}
+                        onChange={(e) => setShowInterviews(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-slate-600">Show interviews</span>
+                    </label>
+                  )}
+                </div>
 
                 {/* Stats Row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t">
@@ -1512,7 +1528,7 @@ export default function JourneyPage() {
                       />
                       <Tooltip content={<CustomTooltip />} />
                       <Customized component={AxisArrows} />
-                      <Customized component={InterviewDots} />
+                      {showInterviews && <Customized component={InterviewDots} />}
                       <Line
                         type="monotone"
                         dataKey="ote"
