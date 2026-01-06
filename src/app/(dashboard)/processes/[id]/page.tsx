@@ -161,8 +161,8 @@ const getContactAvatarUrl = (contact: { name: string; email?: string | null; pho
     if (contact.photo_url) return contact.photo_url;
     if (contact.email) return `https://unavatar.io/${encodeURIComponent(contact.email)}?fallback=false`;
   }
-  // DiceBear open-peeps fallback
-  return `https://api.dicebear.com/7.x/open-peeps/svg?seed=${encodeURIComponent(contact.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  // DiceBear notionists-neutral - clean, consistent illustrated avatars
+  return `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(contact.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
 };
 
 export default function ProcessDetailPage() {
@@ -368,6 +368,70 @@ export default function ProcessDetailPage() {
 
     if (!selectedStepId) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // First, create or find a network connection
+    let networkConnectionId: string | null = null;
+
+    if (!editingContact) {
+      // Check if contact already exists in network by name or email
+      let existingConnection = null;
+      if (contactFormData.email) {
+        const { data } = await supabase
+          .from("network_connections")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("email", contactFormData.email)
+          .single();
+        existingConnection = data;
+      }
+
+      if (!existingConnection && contactFormData.name) {
+        const { data } = await supabase
+          .from("network_connections")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("name", contactFormData.name)
+          .single();
+        existingConnection = data;
+      }
+
+      if (existingConnection) {
+        networkConnectionId = existingConnection.id;
+        // Update the existing network connection with any new info
+        await supabase
+          .from("network_connections")
+          .update({
+            linkedin_url: contactFormData.linkedin_url || undefined,
+            email: contactFormData.email || undefined,
+            role: contactFormData.role || undefined,
+          })
+          .eq("id", existingConnection.id);
+      } else {
+        // Create new network connection
+        const { data: newConnection, error: networkError } = await supabase
+          .from("network_connections")
+          .insert({
+            user_id: user.id,
+            name: contactFormData.name,
+            email: contactFormData.email || null,
+            linkedin_url: contactFormData.linkedin_url || null,
+            role: contactFormData.role || null,
+            relationship_strength: "medium",
+            can_help_with: [],
+          })
+          .select("id")
+          .single();
+
+        if (networkError) {
+          console.error("Failed to create network connection:", networkError);
+        } else if (newConnection) {
+          networkConnectionId = newConnection.id;
+        }
+      }
+    }
+
     const contactData = {
       step_id: selectedStepId,
       name: contactFormData.name,
@@ -376,6 +440,7 @@ export default function ProcessDetailPage() {
       email: contactFormData.email || null,
       notes: contactFormData.notes || null,
       photo_url: contactFormData.photo_url || null,
+      ...(networkConnectionId && !editingContact ? { network_connection_id: networkConnectionId } : {}),
     };
 
     if (editingContact) {
@@ -396,7 +461,7 @@ export default function ProcessDetailPage() {
         toast.error("Failed to add contact");
         return;
       }
-      toast.success("Contact added");
+      toast.success("Contact added to step and network");
     }
 
     setIsContactDialogOpen(false);

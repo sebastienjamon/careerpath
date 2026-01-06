@@ -48,8 +48,8 @@ const getAvatarUrl = (connection: NetworkConnection, useFallback = false): strin
     if (connection.avatar_url) return connection.avatar_url;
     if (connection.email) return `https://unavatar.io/${encodeURIComponent(connection.email)}?fallback=false`;
   }
-  // DiceBear open-peeps fallback - generates consistent avatar based on name
-  return `https://api.dicebear.com/7.x/open-peeps/svg?seed=${encodeURIComponent(connection.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  // DiceBear notionists-neutral - clean, consistent illustrated avatars
+  return `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(connection.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
 };
 
 // Get preview avatar for form
@@ -58,7 +58,7 @@ const getPreviewAvatarUrl = (name: string, email: string, avatarUrl: string, use
     if (avatarUrl) return avatarUrl;
     if (email) return `https://unavatar.io/${encodeURIComponent(email)}?fallback=false`;
   }
-  if (name) return `https://api.dicebear.com/7.x/open-peeps/svg?seed=${encodeURIComponent(name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  if (name) return `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
   return null;
 };
 
