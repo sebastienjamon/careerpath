@@ -1180,12 +1180,29 @@ export default function JourneyPage() {
             return ote.toString();
           };
 
+          // Fun color palette for price tags
+          const tagColors = [
+            { bg: "#dbeafe", border: "#3b82f6", text: "#1d4ed8" },   // Blue
+            { bg: "#f3e8ff", border: "#a855f7", text: "#7c3aed" },   // Purple
+            { bg: "#fce7f3", border: "#ec4899", text: "#be185d" },   // Pink
+            { bg: "#d1fae5", border: "#10b981", text: "#047857" },   // Green
+            { bg: "#ffedd5", border: "#f97316", text: "#c2410c" },   // Orange
+            { bg: "#fef3c7", border: "#f59e0b", text: "#b45309" },   // Amber
+            { bg: "#e0e7ff", border: "#6366f1", text: "#4338ca" },   // Indigo
+            { bg: "#ccfbf1", border: "#14b8a6", text: "#0f766e" },   // Teal
+          ];
+
           const CustomDot = (props: { cx?: number; cy?: number; payload?: typeof chartData[0]; index?: number }) => {
-            const { cx, cy, payload } = props;
+            const { cx, cy, payload, index } = props;
             if (!cx || !cy || !payload) return null;
 
             const currencySymbol = CURRENCIES.find(c => c.value === payload.currency)?.symbol || "$";
             const oteLabel = payload.ote ? `${currencySymbol}${formatOteShort(payload.ote)}` : "";
+            const colorIndex = (index || 0) % tagColors.length;
+            const colors = tagColors[colorIndex];
+
+            const tagWidth = oteLabel.length * 8 + 16;
+            const tagHeight = 24;
 
             return (
               <g>
@@ -1200,18 +1217,50 @@ export default function JourneyPage() {
                     clipPath="inset(0% round 4px)"
                   />
                 )}
-                {/* OTE label below the dot */}
+                {/* Price tag style OTE label */}
                 {payload.ote && (
-                  <text
-                    x={cx}
-                    y={cy + 35}
-                    textAnchor="middle"
-                    fill="#334155"
-                    fontSize={12}
-                    fontWeight={600}
-                  >
-                    {oteLabel}
-                  </text>
+                  <g>
+                    {/* Tag connector line */}
+                    <line
+                      x1={cx}
+                      y1={cy + 20}
+                      x2={cx}
+                      y2={cy + 30}
+                      stroke={colors.border}
+                      strokeWidth={2}
+                    />
+                    {/* Tag body */}
+                    <rect
+                      x={cx - tagWidth / 2}
+                      y={cy + 30}
+                      width={tagWidth}
+                      height={tagHeight}
+                      rx={4}
+                      fill={colors.bg}
+                      stroke={colors.border}
+                      strokeWidth={1.5}
+                    />
+                    {/* Small hole circle */}
+                    <circle
+                      cx={cx - tagWidth / 2 + 8}
+                      cy={cy + 42}
+                      r={3}
+                      fill="white"
+                      stroke={colors.border}
+                      strokeWidth={1}
+                    />
+                    {/* Price text */}
+                    <text
+                      x={cx + 4}
+                      y={cy + 46}
+                      textAnchor="middle"
+                      fill={colors.text}
+                      fontSize={12}
+                      fontWeight={700}
+                    >
+                      {oteLabel}
+                    </text>
+                  </g>
                 )}
               </g>
             );
@@ -1330,9 +1379,9 @@ export default function JourneyPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
+                <div className="h-96">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 40, right: 30, left: 20, bottom: 40 }}>
+                    <LineChart data={chartData} margin={{ top: 40, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                       <XAxis
                         dataKey="year"
