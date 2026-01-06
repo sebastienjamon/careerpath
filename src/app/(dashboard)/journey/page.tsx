@@ -1338,10 +1338,24 @@ export default function JourneyPage() {
           // Component to render interview dots between experiences AND after last experience
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const InterviewDots = (props: any) => {
-            const { formattedGraphicalItems } = props;
-            if (!formattedGraphicalItems || !formattedGraphicalItems[0]) return null;
+            const { formattedGraphicalItems, xAxisMap, yAxisMap } = props;
 
-            const points = formattedGraphicalItems[0]?.props?.points;
+            // Try to get points from formattedGraphicalItems first
+            let points = formattedGraphicalItems?.[0]?.props?.points;
+
+            // If no points from formattedGraphicalItems, calculate from axis scales
+            if (!points || points.length < 1) {
+              const xAxis = xAxisMap && Object.values(xAxisMap)[0] as { scale?: (v: number) => number } | undefined;
+              const yAxis = yAxisMap && Object.values(yAxisMap)[0] as { scale?: (v: number) => number } | undefined;
+
+              if (xAxis?.scale && yAxis?.scale) {
+                points = chartData.map(d => ({
+                  x: xAxis.scale!(d.year),
+                  y: yAxis.scale!(d.ote || 0),
+                }));
+              }
+            }
+
             if (!points || points.length < 1) return null;
 
             const renderInterviewDot = (
@@ -1404,22 +1418,16 @@ export default function JourneyPage() {
                   });
                 })}
 
-                {/* Interviews AFTER the last experience */}
+                {/* Interviews AFTER the last experience (or all recent ones) */}
                 {(() => {
                   const lastPoint = points[points.length - 1];
-                  const lastExp = experiencesWithOte[experiencesWithOte.length - 1];
-                  if (!lastPoint || !lastExp) return null;
+                  if (!lastPoint) return null;
 
-                  const lastEndDate = lastExp.is_current ? lastExp.start_date : (lastExp.end_date || lastExp.start_date);
-                  const futureInterviews = processes.filter(p => {
-                    if (!p.applied_date) return false;
-                    return new Date(p.applied_date).getTime() >= new Date(lastEndDate).getTime();
-                  });
+                  // Show all processes - they're recruitment attempts
+                  // Position them to the right of the last point
+                  if (processes.length === 0) return null;
 
-                  if (futureInterviews.length === 0) return null;
-
-                  // Position them to the right of the last point, slightly above/below the line
-                  return futureInterviews.slice(0, 6).map((interview, i) => {
+                  return processes.slice(0, 6).map((interview, i) => {
                     const offsetX = 40 + (i % 3) * 30;
                     const offsetY = Math.floor(i / 3) * 30 - 15;
                     return renderInterviewDot(
