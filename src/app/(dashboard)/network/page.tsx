@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Users, Linkedin, Edit2, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Users, Linkedin, Edit2, Trash2, RefreshCw, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface NetworkConnection {
@@ -26,6 +26,7 @@ interface NetworkConnection {
   linkedin_url: string | null;
   avatar_url: string | null;
   company: string | null;
+  company_website: string | null;
   role: string | null;
   relationship_strength: 'strong' | 'medium' | 'weak';
   can_help_with: string[];
@@ -33,6 +34,27 @@ interface NetworkConnection {
   created_at: string;
   updated_at: string;
 }
+
+// Extract domain from URL or domain string
+const extractDomain = (input: string | null): string | null => {
+  if (!input) return null;
+  try {
+    if (!input.includes('/') && input.includes('.')) {
+      return input.toLowerCase().replace(/^www\./, '');
+    }
+    const url = new URL(input.startsWith('http') ? input : `https://${input}`);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+};
+
+// Get company logo URL from website
+const getCompanyLogoUrl = (website: string | null): string | null => {
+  const domain = extractDomain(website);
+  if (!domain) return null;
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+};
 
 // DiceBear open-peeps base URL - only smiling faces
 const DICEBEAR_BASE = "https://api.dicebear.com/9.x/open-peeps/svg";
@@ -69,6 +91,7 @@ export default function NetworkPage() {
     email: "",
     linkedin_url: "",
     company: "",
+    company_website: "",
     role: "",
   });
   const [avatarSeed, setAvatarSeed] = useState(0); // For cycling through avatar variations
@@ -145,6 +168,7 @@ export default function NetworkPage() {
       linkedin_url: formData.linkedin_url || null,
       avatar_url: selectedAvatarUrl,
       company: formData.company || null,
+      company_website: formData.company_website || null,
       role: formData.role || null,
       relationship_strength: "medium" as const,
       can_help_with: [] as string[],
@@ -184,6 +208,7 @@ export default function NetworkPage() {
       email: connection.email || "",
       linkedin_url: connection.linkedin_url || "",
       company: connection.company || "",
+      company_website: connection.company_website || "",
       role: connection.role || "",
     });
     setAvatarSeed(0);
@@ -210,6 +235,7 @@ export default function NetworkPage() {
       email: "",
       linkedin_url: "",
       company: "",
+      company_website: "",
       role: "",
     });
     setEditingConnection(null);
@@ -330,13 +356,36 @@ export default function NetworkPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Input
-                    id="role"
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  />
+                  <Label htmlFor="company_website">Company Website (for logo)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="company_website"
+                      value={formData.company_website}
+                      onChange={(e) => setFormData({ ...formData, company_website: e.target.value })}
+                      placeholder="company.com"
+                      className="flex-1"
+                    />
+                    {formData.company_website && getCompanyLogoUrl(formData.company_website) && (
+                      <div className="h-10 w-10 rounded-lg border flex items-center justify-center bg-white flex-shrink-0">
+                        <img
+                          src={getCompanyLogoUrl(formData.company_website)!}
+                          alt="Logo preview"
+                          className="h-6 w-6 object-contain"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Input
+                  id="role"
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                />
               </div>
 
               <div className="flex justify-end gap-2">
@@ -371,71 +420,110 @@ export default function NetworkPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {connections.map((connection) => (
-              <Card key={connection.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <img
-                          src={getAvatarUrl(connection)}
-                          alt={connection.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-slate-900 truncate">{connection.name}</h3>
-                          {connection.linkedin_url && (
-                            <a
-                              href={connection.linkedin_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 hover:text-blue-600 flex-shrink-0"
-                            >
-                              <Linkedin className="h-4 w-4" />
-                            </a>
-                          )}
-                        </div>
-                        {(connection.role || connection.company) && (
-                          <p className="text-sm text-slate-600 truncate">
-                            {connection.role}{connection.role && connection.company && " at "}{connection.company}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(connection)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDelete(connection.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+        <div className="space-y-6">
+          {/* Group connections by company */}
+          {Object.entries(
+            connections.reduce((groups, connection) => {
+              const company = connection.company || "Other";
+              if (!groups[company]) {
+                groups[company] = {
+                  connections: [],
+                  website: connection.company_website,
+                };
+              }
+              groups[company].connections.push(connection);
+              // Use the first available website for the group
+              if (!groups[company].website && connection.company_website) {
+                groups[company].website = connection.company_website;
+              }
+              return groups;
+            }, {} as Record<string, { connections: NetworkConnection[]; website: string | null }>)
+          )
+            .sort(([a], [b]) => {
+              // Sort "Other" to the end
+              if (a === "Other") return 1;
+              if (b === "Other") return -1;
+              return a.localeCompare(b);
+            })
+            .map(([company, { connections: companyConnections, website }]) => (
+              <div key={company}>
+                {/* Company Header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`h-8 w-8 rounded-lg border shadow-sm flex items-center justify-center overflow-hidden ${
+                    website ? "bg-white border-slate-200" : "bg-slate-100 border-slate-200"
+                  }`}>
+                    {website && getCompanyLogoUrl(website) ? (
+                      <img
+                        src={getCompanyLogoUrl(website)!}
+                        alt={`${company} logo`}
+                        className="h-5 w-5 object-contain"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <Building2 className={`h-4 w-4 text-slate-500 ${website ? 'hidden' : ''}`} />
                   </div>
+                  <h2 className="text-lg font-semibold text-slate-900">{company}</h2>
+                  <span className="text-sm text-slate-500">({companyConnections.length})</span>
+                </div>
 
-                  {connection.linkedin_url && (
-                    <div className="mt-3">
-                      <a
-                        href={connection.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-                      >
-                        <Linkedin className="h-3 w-3" />
-                        LinkedIn
-                      </a>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-          ))}
+                {/* Contacts Grid */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {companyConnections.map((connection) => (
+                    <Card key={connection.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                              <img
+                                src={getAvatarUrl(connection)}
+                                alt={connection.name}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-slate-900 truncate">{connection.name}</h3>
+                                {connection.linkedin_url && (
+                                  <a
+                                    href={connection.linkedin_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-500 hover:text-blue-600 flex-shrink-0"
+                                  >
+                                    <Linkedin className="h-4 w-4" />
+                                  </a>
+                                )}
+                              </div>
+                              {connection.role && (
+                                <p className="text-sm text-slate-600 truncate">
+                                  {connection.role}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(connection)}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDelete(connection.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ))}
         </div>
       )}
     </div>
