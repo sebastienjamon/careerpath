@@ -118,7 +118,8 @@ export default async function DashboardPage() {
   const getCompanyLogo = (website: string | null) => {
     if (!website) return null;
     const domain = website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    // Use 64px for retina display clarity (displayed at 32px)
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
   };
 
   const getStatusColor = (status: string) => {
