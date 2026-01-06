@@ -1062,85 +1062,77 @@ export default function JourneyPage() {
           </CardContent>
         </Card>
       ) : viewMode === "list" ? (
-        <div className="relative">
-          {/* Timeline line */}
-          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200" />
-
-          <div className="space-y-1">
-            {experiences.map((experience) => {
-              const logoUrl = getCompanyLogoUrl(experience.company_website);
-              const showLogo = logoUrl && !failedLogos.has(experience.id);
-              return (
-                <div
-                  key={experience.id}
-                  className="relative flex items-center gap-3 py-2 pl-10 pr-2 rounded-lg hover:bg-slate-50 group"
-                >
-                  {/* Timeline dot with company logo */}
-                  <div
-                    className={`absolute left-1 flex h-6 w-6 items-center justify-center rounded border overflow-hidden flex-shrink-0 ${
-                      showLogo
-                        ? "bg-white border-slate-200"
-                        : experience.is_current
-                        ? "bg-green-100 text-green-600 border-green-200"
-                        : "bg-blue-100 text-blue-600 border-blue-200"
-                    }`}
-                  >
-                    {showLogo ? (
-                      <img
-                        src={logoUrl}
-                        alt=""
-                        className="h-4 w-4 object-contain"
-                        onError={() => {
-                          setFailedLogos(prev => new Set(prev).add(experience.id));
-                        }}
-                      />
-                    ) : (
-                      <Briefcase className="h-3 w-3" />
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0 flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-900 truncate">{experience.job_title}</span>
-                        {experience.is_current && (
-                          <Badge className="bg-green-100 text-green-700 text-xs px-1.5 py-0">Current</Badge>
+        <div className="grid gap-4">
+          {experiences.map((experience) => {
+            const logoUrl = getCompanyLogoUrl(experience.company_website);
+            const showLogo = logoUrl && !failedLogos.has(experience.id);
+            return (
+              <Card key={experience.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className={`h-10 w-10 shrink-0 rounded-lg border shadow-sm flex items-center justify-center overflow-hidden ${
+                        showLogo ? "bg-white border-slate-200" : "bg-slate-100 border-slate-200"
+                      }`}>
+                        {showLogo ? (
+                          <img
+                            src={logoUrl}
+                            alt={`${experience.company_name} logo`}
+                            className="h-6 w-6 object-contain"
+                            onError={() => {
+                              setFailedLogos(prev => new Set(prev).add(experience.id));
+                            }}
+                          />
+                        ) : (
+                          <Briefcase className="h-5 w-5 text-slate-500" />
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <span className="truncate">{experience.company_name}</span>
-                        <span className="text-slate-300">·</span>
-                        <span className="whitespace-nowrap">
-                          {formatDate(experience.start_date)} - {experience.is_current ? "Present" : experience.end_date ? formatDate(experience.end_date) : "N/A"}
-                        </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-slate-900 truncate">
+                            {experience.company_name}
+                          </h3>
+                          {experience.is_current && (
+                            <Badge className="bg-green-100 text-green-700">Current</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-600 truncate">{experience.job_title}</p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(experience.start_date)} - {experience.is_current ? "Present" : experience.end_date ? formatDate(experience.end_date) : "N/A"}
+                          </span>
+                          {experience.ote && (
+                            <span className="text-green-600 font-medium">
+                              {formatCurrency(experience.ote, experience.currency || "USD")}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => handleEdit(experience)}
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => handleDelete(experience.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(experience)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(experience.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       ) : (
         // Chart View
