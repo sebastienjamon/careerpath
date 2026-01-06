@@ -1183,6 +1183,36 @@ export default function JourneyPage() {
           // Consistent green color for all price tags (money theme)
           const tagColor = { bg: "#dcfce7", border: "#22c55e", text: "#15803d" };
 
+          // Calculate min/max percentage changes for color scale
+          const percentChanges = chartData
+            .filter(d => d.percentChange !== null)
+            .map(d => d.percentChange as number);
+          const minPercent = Math.min(...percentChanges);
+          const maxPercent = Math.max(...percentChanges);
+
+          // Color scale function - solid colors based on percentage magnitude
+          const getPercentColor = (percent: number) => {
+            if (percent < 0) {
+              // Negative: red (solid)
+              return { bg: "#fee2e2", border: "#ef4444", text: "#dc2626" };
+            }
+            // Positive: green scale based on position between 0 and max
+            const intensity = maxPercent > 0 ? percent / maxPercent : 0;
+            // Interpolate from light green to vibrant green/teal
+            if (intensity > 0.8) {
+              // Top performers - bright teal/emerald
+              return { bg: "#a7f3d0", border: "#10b981", text: "#047857" };
+            } else if (intensity > 0.5) {
+              // Good performers - bright green
+              return { bg: "#bbf7d0", border: "#22c55e", text: "#15803d" };
+            } else if (intensity > 0.25) {
+              // Moderate - medium green
+              return { bg: "#dcfce7", border: "#4ade80", text: "#16a34a" };
+            }
+            // Low increase - light green
+            return { bg: "#ecfdf5", border: "#86efac", text: "#22c55e" };
+          };
+
           const CustomDot = (props: { cx?: number; cy?: number; payload?: typeof chartData[0]; index?: number }) => {
             const { cx, cy, payload, index } = props;
             if (!cx || !cy || !payload) return null;
@@ -1195,13 +1225,13 @@ export default function JourneyPage() {
 
             // Get percentage change for this point
             const showPercent = index !== undefined && index > 0 && payload.percentChange;
-            const isPositive = (payload.percentChange || 0) >= 0;
-            const percentLabel = showPercent ? `${isPositive ? "+" : ""}${Math.round(payload.percentChange || 0)}%` : "";
+            const percentColor = payload.percentChange ? getPercentColor(payload.percentChange) : null;
+            const percentLabel = showPercent ? `${(payload.percentChange || 0) >= 0 ? "+" : ""}${Math.round(payload.percentChange || 0)}%` : "";
 
             return (
               <g>
-                {/* Percentage badge - centered above the logo */}
-                {showPercent && (
+                {/* Percentage badge - centered above the logo with color scale */}
+                {showPercent && percentColor && (
                   <g>
                     <rect
                       x={cx - 26}
@@ -1209,15 +1239,15 @@ export default function JourneyPage() {
                       width={52}
                       height={22}
                       rx={11}
-                      fill={isPositive ? "#dcfce7" : "#fee2e2"}
-                      stroke={isPositive ? "#22c55e" : "#ef4444"}
+                      fill={percentColor.bg}
+                      stroke={percentColor.border}
                       strokeWidth={1.5}
                     />
                     <text
                       x={cx}
                       y={cy - 35}
                       textAnchor="middle"
-                      fill={isPositive ? "#16a34a" : "#dc2626"}
+                      fill={percentColor.text}
                       fontSize={12}
                       fontWeight={700}
                     >
@@ -1348,7 +1378,7 @@ export default function JourneyPage() {
                         dataKey="year"
                         axisLine={{ stroke: "#e2e8f0" }}
                         tickLine={false}
-                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        tick={{ fill: "#64748b", fontSize: 12, dy: 10 }}
                       />
                       <YAxis
                         domain={[0, maxOte + padding]}
