@@ -1200,12 +1200,12 @@ export default function JourneyPage() {
 
             return (
               <g>
-                {/* Percentage badge - positioned to the upper left of the dot */}
+                {/* Percentage badge - centered above the logo */}
                 {showPercent && (
                   <g>
                     <rect
-                      x={cx - 56}
-                      y={cy - 35}
+                      x={cx - 26}
+                      y={cy - 50}
                       width={52}
                       height={22}
                       rx={11}
@@ -1214,8 +1214,8 @@ export default function JourneyPage() {
                       strokeWidth={1.5}
                     />
                     <text
-                      x={cx - 30}
-                      y={cy - 20}
+                      x={cx}
+                      y={cy - 35}
                       textAnchor="middle"
                       fill={isPositive ? "#16a34a" : "#dc2626"}
                       fontSize={12}
