@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2, List, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Customized } from "recharts";
 
 import { toast } from "sonner";
 
@@ -1246,64 +1246,60 @@ export default function JourneyPage() {
             );
           };
 
-          // Custom label to show percentage change as a "step" above the line between points
-          const CustomLabel = (props: { x?: number; y?: number; index?: number; value?: number; viewBox?: { x: number; y: number; width: number; height: number } }) => {
-            const { x, y, index, viewBox } = props;
-            if (!x || !y || index === undefined || index === 0 || !viewBox) return null;
+          // Render percentage badges at true midpoints between experiences
+          const PercentageBadges = (props: { xAxisMap?: Record<string, { scale: (v: number) => number }>; yAxisMap?: Record<string, { scale: (v: number) => number }> }) => {
+            const { xAxisMap, yAxisMap } = props;
+            if (!xAxisMap || !yAxisMap) return null;
 
-            const currentData = chartData[index];
-            const prevData = chartData[index - 1];
-            if (!currentData?.percentChange || !prevData) return null;
-
-            // Calculate midpoint X position between two data points
-            const pointSpacing = viewBox.width / (chartData.length - 1 || 1);
-            const midX = x - pointSpacing / 2;
-
-            // Calculate midpoint Y position along the line
-            const yScale = viewBox.height / (maxOte + padding);
-            const prevY = viewBox.y + viewBox.height - (prevData.ote || 0) * yScale;
-            const currY = y;
-            const midY = (prevY + currY) / 2;
-
-            // Position the step badge ABOVE the line (offset up by 35px)
-            const stepY = midY - 35;
-
-            const isPositive = currentData.percentChange >= 0;
-            const label = `${isPositive ? "+" : ""}${Math.round(currentData.percentChange)}%`;
+            const xScale = Object.values(xAxisMap)[0]?.scale;
+            const yScale = Object.values(yAxisMap)[0]?.scale;
+            if (!xScale || !yScale) return null;
 
             return (
               <g>
-                {/* Connector line from badge to the actual line */}
-                <line
-                  x1={midX}
-                  y1={stepY + 12}
-                  x2={midX}
-                  y2={midY}
-                  stroke={isPositive ? "#86efac" : "#fca5a5"}
-                  strokeWidth={2}
-                  strokeDasharray="3 2"
-                />
-                {/* Step badge */}
-                <rect
-                  x={midX - 28}
-                  y={stepY - 12}
-                  width={56}
-                  height={24}
-                  rx={12}
-                  fill={isPositive ? "#dcfce7" : "#fee2e2"}
-                  stroke={isPositive ? "#22c55e" : "#ef4444"}
-                  strokeWidth={1.5}
-                />
-                <text
-                  x={midX}
-                  y={stepY + 4}
-                  textAnchor="middle"
-                  fill={isPositive ? "#16a34a" : "#dc2626"}
-                  fontSize={13}
-                  fontWeight={700}
-                >
-                  {label}
-                </text>
+                {chartData.map((data, index) => {
+                  if (index === 0 || !data.percentChange) return null;
+                  const prevData = chartData[index - 1];
+
+                  // Get exact pixel positions for both points
+                  const x1 = xScale(prevData.year);
+                  const y1 = yScale(prevData.ote || 0);
+                  const x2 = xScale(data.year);
+                  const y2 = yScale(data.ote || 0);
+
+                  // True midpoint of the line segment
+                  const midX = (x1 + x2) / 2;
+                  const midY = (y1 + y2) / 2;
+
+                  const isPositive = data.percentChange >= 0;
+                  const label = `${isPositive ? "+" : ""}${Math.round(data.percentChange)}%`;
+
+                  return (
+                    <g key={`pct-${index}`}>
+                      {/* Badge positioned at the midpoint of the line */}
+                      <rect
+                        x={midX - 28}
+                        y={midY - 12}
+                        width={56}
+                        height={24}
+                        rx={12}
+                        fill={isPositive ? "#dcfce7" : "#fee2e2"}
+                        stroke={isPositive ? "#22c55e" : "#ef4444"}
+                        strokeWidth={1.5}
+                      />
+                      <text
+                        x={midX}
+                        y={midY + 5}
+                        textAnchor="middle"
+                        fill={isPositive ? "#16a34a" : "#dc2626"}
+                        fontSize={13}
+                        fontWeight={700}
+                      >
+                        {label}
+                      </text>
+                    </g>
+                  );
+                })}
               </g>
             );
           };
@@ -1401,9 +1397,8 @@ export default function JourneyPage() {
                         strokeWidth={3}
                         dot={<CustomDot />}
                         activeDot={{ r: 24, fill: "#3b82f6", stroke: "white", strokeWidth: 3 }}
-                      >
-                        <LabelList content={<CustomLabel />} />
-                      </Line>
+                      />
+                      <Customized component={PercentageBadges} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
