@@ -59,13 +59,30 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Extract text from PDF using unpdf (serverless-compatible)
+    // Extract text from PDF using pdf2json (pure JS, serverless-compatible)
     let pdfText: string;
     try {
-      const { extractText } = await import("unpdf");
-      const { text } = await extractText(buffer);
-      // text is an array of strings (one per page), join them
-      pdfText = Array.isArray(text) ? text.join("\n") : text;
+      const PDFParser = (await import("pdf2json")).default;
+
+      pdfText = await new Promise((resolve, reject) => {
+        const pdfParser = new PDFParser();
+
+        pdfParser.on("pdfParser_dataReady", (pdfData: { Pages: Array<{ Texts: Array<{ R: Array<{ T: string }> }> }> }) => {
+          // Extract text from all pages
+          const text = pdfData.Pages.map(page =>
+            page.Texts.map(textItem =>
+              textItem.R.map(r => decodeURIComponent(r.T)).join("")
+            ).join(" ")
+          ).join("\n");
+          resolve(text);
+        });
+
+        pdfParser.on("pdfParser_dataError", (error: Error) => {
+          reject(error);
+        });
+
+        pdfParser.parseBuffer(buffer);
+      });
     } catch (pdfError) {
       console.error("PDF parsing error:", pdfError);
       return NextResponse.json({ error: "Failed to read PDF file. Please ensure it's a valid PDF." }, { status: 400 });
