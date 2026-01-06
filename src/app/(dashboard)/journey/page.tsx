@@ -1335,17 +1335,54 @@ export default function JourneyPage() {
             });
           };
 
-          // Component to render interview dots between experiences
+          // Component to render interview dots between experiences AND after last experience
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const InterviewDots = (props: any) => {
             const { formattedGraphicalItems } = props;
             if (!formattedGraphicalItems || !formattedGraphicalItems[0]) return null;
 
             const points = formattedGraphicalItems[0]?.props?.points;
-            if (!points || points.length < 2) return null;
+            if (!points || points.length < 1) return null;
+
+            const renderInterviewDot = (
+              interview: typeof processes[0],
+              x: number,
+              y: number,
+              key: string
+            ) => {
+              const logoUrl = interview.company_website
+                ? `https://www.google.com/s2/favicons?domain=${interview.company_website}&sz=64`
+                : null;
+
+              return (
+                <g key={key}>
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={12}
+                    fill="white"
+                    stroke={interview.status === "rejected" ? "#fca5a5" : "#e2e8f0"}
+                    strokeWidth={2}
+                    opacity={0.9}
+                  />
+                  {logoUrl && (
+                    <image
+                      x={x - 8}
+                      y={y - 8}
+                      width={16}
+                      height={16}
+                      href={logoUrl}
+                      clipPath="inset(0% round 2px)"
+                      opacity={0.8}
+                    />
+                  )}
+                </g>
+              );
+            };
 
             return (
               <g>
+                {/* Interviews BETWEEN experiences */}
                 {points.map((point: { x: number; y: number }, index: number) => {
                   if (index === 0) return null;
                   const prevPoint = points[index - 1];
@@ -1354,48 +1391,45 @@ export default function JourneyPage() {
 
                   if (!prevExp || !currExp) return null;
 
-                  // Find interviews between these two experiences
                   const prevEndDate = prevExp.is_current ? new Date().toISOString() : (prevExp.end_date || prevExp.start_date);
                   const interviews = getInterviewsBetween(prevEndDate, currExp.start_date);
 
                   if (interviews.length === 0) return null;
 
                   return interviews.slice(0, 5).map((interview, i) => {
-                    // Position dots evenly along the line segment
                     const t = (i + 1) / (Math.min(interviews.length, 5) + 1);
                     const x = prevPoint.x + t * (point.x - prevPoint.x);
                     const y = prevPoint.y + t * (point.y - prevPoint.y);
-                    const logoUrl = interview.company_website
-                      ? `https://www.google.com/s2/favicons?domain=${interview.company_website}&sz=64`
-                      : null;
-
-                    return (
-                      <g key={`interview-${index}-${i}`}>
-                        {/* Small circle with logo */}
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={12}
-                          fill="white"
-                          stroke={interview.status === "rejected" ? "#fca5a5" : "#e2e8f0"}
-                          strokeWidth={2}
-                          opacity={0.9}
-                        />
-                        {logoUrl && (
-                          <image
-                            x={x - 8}
-                            y={y - 8}
-                            width={16}
-                            height={16}
-                            href={logoUrl}
-                            clipPath="inset(0% round 2px)"
-                            opacity={0.8}
-                          />
-                        )}
-                      </g>
-                    );
+                    return renderInterviewDot(interview, x, y, `interview-${index}-${i}`);
                   });
                 })}
+
+                {/* Interviews AFTER the last experience */}
+                {(() => {
+                  const lastPoint = points[points.length - 1];
+                  const lastExp = experiencesWithOte[experiencesWithOte.length - 1];
+                  if (!lastPoint || !lastExp) return null;
+
+                  const lastEndDate = lastExp.is_current ? lastExp.start_date : (lastExp.end_date || lastExp.start_date);
+                  const futureInterviews = processes.filter(p => {
+                    if (!p.applied_date) return false;
+                    return new Date(p.applied_date).getTime() >= new Date(lastEndDate).getTime();
+                  });
+
+                  if (futureInterviews.length === 0) return null;
+
+                  // Position them to the right of the last point, slightly above/below the line
+                  return futureInterviews.slice(0, 6).map((interview, i) => {
+                    const offsetX = 40 + (i % 3) * 30;
+                    const offsetY = Math.floor(i / 3) * 30 - 15;
+                    return renderInterviewDot(
+                      interview,
+                      lastPoint.x + offsetX,
+                      lastPoint.y + offsetY,
+                      `future-interview-${i}`
+                    );
+                  });
+                })()}
               </g>
             );
           };
@@ -1468,15 +1502,15 @@ export default function JourneyPage() {
                     </CardDescription>
                   </div>
                   {processes.length > 0 && (
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={showInterviews}
-                        onChange={(e) => setShowInterviews(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-slate-600">Show interviews</span>
-                    </label>
+                    <button
+                      onClick={() => setShowInterviews(!showInterviews)}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <span className="text-slate-600">Interviews</span>
+                      <div className={`relative w-10 h-5 rounded-full transition-colors ${showInterviews ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showInterviews ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </div>
+                    </button>
                   )}
                 </div>
 
