@@ -806,7 +806,8 @@ export default function ProcessDetailPage() {
       });
 
     if (error) {
-      toast.error("Failed to add link");
+      console.error("Failed to add link:", error);
+      toast.error(`Failed to add link: ${error.message}`);
       return;
     }
 
