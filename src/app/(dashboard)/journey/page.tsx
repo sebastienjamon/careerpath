@@ -1190,27 +1190,27 @@ export default function JourneyPage() {
           const minPercent = Math.min(...percentChanges);
           const maxPercent = Math.max(...percentChanges);
 
-          // Color scale function - solid colors based on percentage magnitude
+          // Red to green color scale based on percentage magnitude
           const getPercentColor = (percent: number) => {
-            if (percent < 0) {
-              // Negative: red (solid)
+            // Normalize percentage to 0-1 range across all values
+            const range = maxPercent - minPercent;
+            const normalized = range > 0 ? (percent - minPercent) / range : 0.5;
+
+            if (normalized < 0.2) {
+              // Lowest - red
               return { bg: "#fee2e2", border: "#ef4444", text: "#dc2626" };
+            } else if (normalized < 0.4) {
+              // Low - orange
+              return { bg: "#ffedd5", border: "#f97316", text: "#c2410c" };
+            } else if (normalized < 0.6) {
+              // Medium - yellow
+              return { bg: "#fef9c3", border: "#eab308", text: "#a16207" };
+            } else if (normalized < 0.8) {
+              // Good - light green
+              return { bg: "#dcfce7", border: "#22c55e", text: "#15803d" };
             }
-            // Positive: green scale based on position between 0 and max
-            const intensity = maxPercent > 0 ? percent / maxPercent : 0;
-            // Interpolate from light green to vibrant green/teal
-            if (intensity > 0.8) {
-              // Top performers - bright teal/emerald
-              return { bg: "#a7f3d0", border: "#10b981", text: "#047857" };
-            } else if (intensity > 0.5) {
-              // Good performers - bright green
-              return { bg: "#bbf7d0", border: "#22c55e", text: "#15803d" };
-            } else if (intensity > 0.25) {
-              // Moderate - medium green
-              return { bg: "#dcfce7", border: "#4ade80", text: "#16a34a" };
-            }
-            // Low increase - light green
-            return { bg: "#ecfdf5", border: "#86efac", text: "#22c55e" };
+            // Best - bright green
+            return { bg: "#a7f3d0", border: "#10b981", text: "#047857" };
           };
 
           const CustomDot = (props: { cx?: number; cy?: number; payload?: typeof chartData[0]; index?: number }) => {
@@ -1378,7 +1378,7 @@ export default function JourneyPage() {
                         dataKey="year"
                         axisLine={{ stroke: "#e2e8f0" }}
                         tickLine={false}
-                        tick={{ fill: "#64748b", fontSize: 12, dy: 10 }}
+                        tick={{ fill: "#64748b", fontSize: 12, dy: 25 }}
                       />
                       <YAxis
                         domain={[0, maxOte + padding]}
