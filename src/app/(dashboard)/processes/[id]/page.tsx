@@ -175,12 +175,22 @@ export default function ProcessDetailPage() {
   const [steps, setSteps] = useState<ProcessStep[]>([]);
   const [contacts, setContacts] = useState<Record<string, StepContact[]>>({});
   const [attachments, setAttachments] = useState<Record<string, StepAttachment[]>>({});
+  const [networkConnections, setNetworkConnections] = useState<Array<{
+    id: string;
+    name: string;
+    email: string | null;
+    role: string | null;
+    linkedin_url: string | null;
+    avatar_url: string | null;
+  }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isStepDialogOpen, setIsStepDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<ProcessStep | null>(null);
   const [editingContact, setEditingContact] = useState<StepContact | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [selectedNetworkContactId, setSelectedNetworkContactId] = useState<string | null>(null);
+  const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [isEventPickerOpen, setIsEventPickerOpen] = useState(false);
   const [eventPickerStepId, setEventPickerStepId] = useState<string | null>(null);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
@@ -215,8 +225,24 @@ export default function ProcessDetailPage() {
   useEffect(() => {
     fetchProcess();
     fetchSteps();
+    fetchNetworkConnections();
     checkCalendarConnection();
   }, [processId]);
+
+  const fetchNetworkConnections = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("network_connections")
+      .select("id, name, email, role, linkedin_url, avatar_url")
+      .eq("user_id", user.id)
+      .order("name", { ascending: true });
+
+    if (!error && data) {
+      setNetworkConnections(data);
+    }
+  };
 
   const checkCalendarConnection = async () => {
     const { data } = await supabase
@@ -368,103 +394,64 @@ export default function ProcessDetailPage() {
 
     if (!selectedStepId) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // First, create or find a network connection
-    let networkConnectionId: string | null = null;
-
-    if (!editingContact) {
-      // Check if contact already exists in network by name or email
-      let existingConnection = null;
-      if (contactFormData.email) {
-        const { data } = await supabase
-          .from("network_connections")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("email", contactFormData.email)
-          .single();
-        existingConnection = data;
-      }
-
-      if (!existingConnection && contactFormData.name) {
-        const { data } = await supabase
-          .from("network_connections")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("name", contactFormData.name)
-          .single();
-        existingConnection = data;
-      }
-
-      if (existingConnection) {
-        networkConnectionId = existingConnection.id;
-        // Update the existing network connection with any new info
-        await supabase
-          .from("network_connections")
-          .update({
-            linkedin_url: contactFormData.linkedin_url || undefined,
-            email: contactFormData.email || undefined,
-            role: contactFormData.role || undefined,
-          })
-          .eq("id", existingConnection.id);
-      } else {
-        // Create new network connection
-        const { data: newConnection, error: networkError } = await supabase
-          .from("network_connections")
-          .insert({
-            user_id: user.id,
-            name: contactFormData.name,
-            email: contactFormData.email || null,
-            linkedin_url: contactFormData.linkedin_url || null,
-            role: contactFormData.role || null,
-            relationship_strength: "medium",
-            can_help_with: [],
-          })
-          .select("id")
-          .single();
-
-        if (networkError) {
-          console.error("Failed to create network connection:", networkError);
-          toast.error(`Network sync failed: ${networkError.message}`);
-        } else if (newConnection) {
-          networkConnectionId = newConnection.id;
-        }
-      }
-    }
-
-    const contactData = {
-      step_id: selectedStepId,
-      name: contactFormData.name,
-      role: contactFormData.role || null,
-      linkedin_url: contactFormData.linkedin_url || null,
-      email: contactFormData.email || null,
-      notes: contactFormData.notes || null,
-      photo_url: contactFormData.photo_url || null,
-      ...(networkConnectionId && !editingContact ? { network_connection_id: networkConnectionId } : {}),
-    };
-
+    // For editing, we update the notes only
     if (editingContact) {
       const { error } = await supabase
         .from("step_contacts")
-        .update(contactData)
+        .update({ notes: contactFormData.notes || null })
         .eq("id", editingContact.id);
 
       if (error) {
-        toast.error("Failed to update contact");
+        toast.error("Failed to update contact notes");
         return;
       }
-      toast.success("Contact updated");
-    } else {
-      const { error } = await supabase.from("step_contacts").insert(contactData);
-
-      if (error) {
-        toast.error("Failed to add contact");
-        return;
-      }
-      toast.success("Contact added to step and network");
+      toast.success("Contact notes updated");
+      setIsContactDialogOpen(false);
+      resetContactForm();
+      fetchContacts(selectedStepId);
+      return;
     }
 
+    // For new contacts, we need a selected network contact
+    if (!selectedNetworkContactId) {
+      toast.error("Please select a contact from your network");
+      return;
+    }
+
+    // Get the network contact details
+    const networkContact = networkConnections.find(c => c.id === selectedNetworkContactId);
+    if (!networkContact) {
+      toast.error("Contact not found");
+      return;
+    }
+
+    // Check if this contact is already added to this step
+    const existingContacts = contacts[selectedStepId] || [];
+    if (existingContacts.some(c => c.network_connection_id === selectedNetworkContactId)) {
+      toast.error("This contact is already added to this step");
+      return;
+    }
+
+    // Create step_contact linked to the network connection
+    const contactData = {
+      step_id: selectedStepId,
+      name: networkContact.name,
+      role: networkContact.role || null,
+      linkedin_url: networkContact.linkedin_url || null,
+      email: networkContact.email || null,
+      notes: contactFormData.notes || null,
+      network_connection_id: selectedNetworkContactId,
+    };
+
+    const { error } = await supabase.from("step_contacts").insert(contactData);
+
+    if (error) {
+      console.error("Failed to add contact:", error);
+      toast.error("Failed to add contact to step");
+      return;
+    }
+
+    toast.success("Contact added to step");
     setIsContactDialogOpen(false);
     resetContactForm();
     fetchContacts(selectedStepId);
@@ -643,6 +630,9 @@ export default function ProcessDetailPage() {
       notes: "",
       photo_url: "",
     });
+    setSelectedNetworkContactId(null);
+    setContactSearchQuery("");
+    setFormAvatarError(false);
     setEditingContact(null);
     setSelectedStepId(null);
     setFormAvatarError(false);
@@ -1399,116 +1389,157 @@ export default function ProcessDetailPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingContact ? "Edit Contact" : "Add Contact"}
+              {editingContact ? "Edit Contact Notes" : "Add Contact from Network"}
             </DialogTitle>
             <DialogDescription>
-              Paste a LinkedIn URL to auto-fill contact details
+              {editingContact
+                ? "Update notes for this contact"
+                : networkConnections.length === 0
+                  ? "Add contacts in the Network tab first"
+                  : "Select a contact from your network to add to this step"
+              }
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleContactSubmit} className="space-y-4">
-            {/* Avatar Preview */}
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                {contactFormData.name ? (
-                  <img
-                    src={
-                      formAvatarError
-                        ? getContactAvatarUrl({ name: contactFormData.name, email: contactFormData.email, photo_url: contactFormData.photo_url }, true)
-                        : getContactAvatarUrl({ name: contactFormData.name, email: contactFormData.email, photo_url: contactFormData.photo_url })
+            {editingContact ? (
+              /* Editing mode - just show the contact info and notes */
+              <>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img
+                      src={getContactAvatarUrl({ name: editingContact.name, email: editingContact.email, photo_url: editingContact.photo_url })}
+                      alt={editingContact.name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = getContactAvatarUrl({ name: editingContact.name }, true);
+                      }}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{editingContact.name}</p>
+                    {editingContact.role && (
+                      <p className="text-sm text-slate-500 truncate">{editingContact.role}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Notes for this step</Label>
+                  <Textarea
+                    value={contactFormData.notes}
+                    onChange={(e) =>
+                      setContactFormData({ ...contactFormData, notes: e.target.value })
                     }
-                    alt="Avatar preview"
-                    className="h-full w-full object-cover"
-                    onError={() => {
-                      if ((contactFormData.photo_url || contactFormData.email) && !formAvatarError) {
-                        setFormAvatarError(true);
-                      }
-                    }}
+                    placeholder="Any notes about this contact for this interview step..."
+                    rows={3}
                   />
+                </div>
+              </>
+            ) : (
+              /* Add mode - show network contact selector */
+              <>
+                {networkConnections.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 mb-4">No contacts in your network yet</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsContactDialogOpen(false);
+                        router.push("/network");
+                      }}
+                    >
+                      Go to Network
+                    </Button>
+                  </div>
                 ) : (
-                  <User className="h-8 w-8 text-slate-400" />
+                  <>
+                    {/* Search */}
+                    <div className="relative">
+                      <Input
+                        value={contactSearchQuery}
+                        onChange={(e) => setContactSearchQuery(e.target.value)}
+                        placeholder="Search contacts..."
+                        className="pl-9"
+                      />
+                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    </div>
+
+                    {/* Contact List */}
+                    <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
+                      {networkConnections
+                        .filter(c =>
+                          c.name.toLowerCase().includes(contactSearchQuery.toLowerCase()) ||
+                          (c.role && c.role.toLowerCase().includes(contactSearchQuery.toLowerCase())) ||
+                          (c.email && c.email.toLowerCase().includes(contactSearchQuery.toLowerCase()))
+                        )
+                        .map(contact => (
+                          <button
+                            key={contact.id}
+                            type="button"
+                            onClick={() => setSelectedNetworkContactId(contact.id)}
+                            className={`w-full flex items-center gap-3 p-3 text-left hover:bg-slate-50 transition-colors ${
+                              selectedNetworkContactId === contact.id ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
+                            }`}
+                          >
+                            <div className="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                              <img
+                                src={getContactAvatarUrl({ name: contact.name, email: contact.email, photo_url: null })}
+                                alt={contact.name}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = getContactAvatarUrl({ name: contact.name }, true);
+                                }}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate text-sm">{contact.name}</p>
+                              {contact.role && (
+                                <p className="text-xs text-slate-500 truncate">{contact.role}</p>
+                              )}
+                            </div>
+                            {selectedNetworkContactId === contact.id && (
+                              <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      {networkConnections.filter(c =>
+                        c.name.toLowerCase().includes(contactSearchQuery.toLowerCase()) ||
+                        (c.role && c.role.toLowerCase().includes(contactSearchQuery.toLowerCase())) ||
+                        (c.email && c.email.toLowerCase().includes(contactSearchQuery.toLowerCase()))
+                      ).length === 0 && (
+                        <div className="p-4 text-center text-sm text-slate-500">
+                          No contacts found
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Notes */}
+                    <div className="space-y-2">
+                      <Label>Notes for this step <span className="text-slate-400 font-normal">(optional)</span></Label>
+                      <Textarea
+                        value={contactFormData.notes}
+                        onChange={(e) =>
+                          setContactFormData({ ...contactFormData, notes: e.target.value })
+                        }
+                        placeholder="Any notes about this contact for this interview step..."
+                        rows={2}
+                      />
+                    </div>
+                  </>
                 )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-slate-600">
-                  Each contact gets a unique avatar. Add email for their real photo.
-                </p>
-              </div>
-            </div>
-
-            {/* LinkedIn URL - auto-fills name when valid URL is pasted */}
-            <div className="space-y-2">
-              <Label>LinkedIn URL <span className="text-slate-400 font-normal">(optional)</span></Label>
-              <div className="relative">
-                <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  value={contactFormData.linkedin_url}
-                  onChange={(e) => handleLinkedInUrlChange(e.target.value)}
-                  placeholder="linkedin.com/in/john-smith"
-                  className="pl-9"
-                />
-              </div>
-              <p className="text-xs text-slate-500">
-                Paste a LinkedIn URL to auto-fill the name
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Name <span className="text-red-500">*</span></Label>
-                <Input
-                  value={contactFormData.name}
-                  onChange={(e) =>
-                    setContactFormData({ ...contactFormData, name: e.target.value })
-                  }
-                  placeholder="John Smith"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Email <span className="text-slate-400 font-normal">(for avatar)</span></Label>
-                <Input
-                  type="email"
-                  value={contactFormData.email}
-                  onChange={(e) => {
-                    setContactFormData({ ...contactFormData, email: e.target.value });
-                    setFormAvatarError(false);
-                  }}
-                  placeholder="john@company.com"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Input
-                value={contactFormData.role}
-                onChange={(e) =>
-                  setContactFormData({ ...contactFormData, role: e.target.value })
-                }
-                placeholder="Engineering Manager"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={contactFormData.notes}
-                onChange={(e) =>
-                  setContactFormData({ ...contactFormData, notes: e.target.value })
-                }
-                placeholder="Any notes about this person..."
-                rows={2}
-              />
-            </div>
+              </>
+            )}
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIsContactDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingContact ? "Update" : "Add"} Contact
-              </Button>
+              {(editingContact || networkConnections.length > 0) && (
+                <Button type="submit" disabled={!editingContact && !selectedNetworkContactId}>
+                  {editingContact ? "Update Notes" : "Add Contact"}
+                </Button>
+              )}
             </div>
           </form>
         </DialogContent>
