@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2, List, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Customized } from "recharts";
 
 import { toast } from "sonner";
 
@@ -123,6 +123,13 @@ const getCompanyLogoUrl = (website: string | null): string | null => {
 export default function JourneyPage() {
   const supabase = createClient();
   const [experiences, setExperiences] = useState<CareerExperience[]>([]);
+  const [processes, setProcesses] = useState<Array<{
+    id: string;
+    company_name: string;
+    company_website: string | null;
+    status: string;
+    applied_date: string | null;
+  }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExperience, setEditingExperience] = useState<CareerExperience | null>(null);
@@ -235,18 +242,28 @@ export default function JourneyPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from("career_experiences")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("start_date", { ascending: false });
+    // Fetch both experiences and recruitment processes
+    const [experiencesResult, processesResult] = await Promise.all([
+      supabase
+        .from("career_experiences")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("start_date", { ascending: false }),
+      supabase
+        .from("recruitment_processes")
+        .select("id, company_name, company_website, status, applied_date")
+        .eq("user_id", user.id)
+        .not("status", "eq", "accepted") // Exclude accepted (those became experiences)
+        .order("applied_date", { ascending: true }),
+    ]);
 
-    if (error) {
+    if (experiencesResult.error) {
       toast.error("Failed to load experiences");
       return;
     }
 
-    setExperiences(data || []);
+    setExperiences(experiencesResult.data || []);
+    setProcesses(processesResult.data || []);
     setIsLoading(false);
   };
 
@@ -1306,6 +1323,108 @@ export default function JourneyPage() {
             );
           };
 
+          // Find interview processes that occurred between two career experiences
+          const getInterviewsBetween = (startDate: string, endDate: string) => {
+            return processes.filter(p => {
+              if (!p.applied_date) return false;
+              const appliedTime = new Date(p.applied_date).getTime();
+              const startTime = new Date(startDate).getTime();
+              const endTime = new Date(endDate).getTime();
+              return appliedTime >= startTime && appliedTime <= endTime;
+            });
+          };
+
+          // Component to render interview dots between experiences
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const InterviewDots = (props: any) => {
+            const { formattedGraphicalItems } = props;
+            if (!formattedGraphicalItems || !formattedGraphicalItems[0]) return null;
+
+            const points = formattedGraphicalItems[0]?.props?.points;
+            if (!points || points.length < 2) return null;
+
+            return (
+              <g>
+                {points.map((point: { x: number; y: number }, index: number) => {
+                  if (index === 0) return null;
+                  const prevPoint = points[index - 1];
+                  const prevExp = experiencesWithOte[index - 1];
+                  const currExp = experiencesWithOte[index];
+
+                  if (!prevExp || !currExp) return null;
+
+                  // Find interviews between these two experiences
+                  const prevEndDate = prevExp.is_current ? new Date().toISOString() : (prevExp.end_date || prevExp.start_date);
+                  const interviews = getInterviewsBetween(prevEndDate, currExp.start_date);
+
+                  if (interviews.length === 0) return null;
+
+                  return interviews.slice(0, 5).map((interview, i) => {
+                    // Position dots evenly along the line segment
+                    const t = (i + 1) / (Math.min(interviews.length, 5) + 1);
+                    const x = prevPoint.x + t * (point.x - prevPoint.x);
+                    const y = prevPoint.y + t * (point.y - prevPoint.y);
+                    const logoUrl = interview.company_website
+                      ? `https://www.google.com/s2/favicons?domain=${interview.company_website}&sz=64`
+                      : null;
+
+                    return (
+                      <g key={`interview-${index}-${i}`}>
+                        {/* Small circle with logo */}
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r={12}
+                          fill="white"
+                          stroke={interview.status === "rejected" ? "#fca5a5" : "#e2e8f0"}
+                          strokeWidth={2}
+                          opacity={0.9}
+                        />
+                        {logoUrl && (
+                          <image
+                            x={x - 8}
+                            y={y - 8}
+                            width={16}
+                            height={16}
+                            href={logoUrl}
+                            clipPath="inset(0% round 2px)"
+                            opacity={0.8}
+                          />
+                        )}
+                      </g>
+                    );
+                  });
+                })}
+              </g>
+            );
+          };
+
+          // Arrows at the end of axes
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const AxisArrows = (props: any) => {
+            const { xAxisMap, yAxisMap } = props;
+            if (!xAxisMap || !yAxisMap) return null;
+
+            const xAxis = Object.values(xAxisMap)[0] as { x: number; y: number; width: number } | undefined;
+            const yAxis = Object.values(yAxisMap)[0] as { x: number; y: number; height: number } | undefined;
+            if (!xAxis || !yAxis) return null;
+
+            return (
+              <g>
+                {/* X-axis arrow (pointing right) */}
+                <polygon
+                  points={`${xAxis.x + xAxis.width},${xAxis.y} ${xAxis.x + xAxis.width - 8},${xAxis.y - 4} ${xAxis.x + xAxis.width - 8},${xAxis.y + 4}`}
+                  fill="#94a3b8"
+                />
+                {/* Y-axis arrow (pointing up) */}
+                <polygon
+                  points={`${yAxis.x},${yAxis.y - yAxis.height} ${yAxis.x - 4},${yAxis.y - yAxis.height + 8} ${yAxis.x + 4},${yAxis.y - yAxis.height + 8}`}
+                  fill="#94a3b8"
+                />
+              </g>
+            );
+          };
+
           const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: typeof chartData[0] }> }) => {
             if (!active || !payload || !payload.length) return null;
             const data = payload[0].payload;
@@ -1376,13 +1495,13 @@ export default function JourneyPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                       <XAxis
                         dataKey="year"
-                        axisLine={{ stroke: "#94a3b8", strokeWidth: 2 }}
+                        axisLine={{ stroke: "#94a3b8" }}
                         tickLine={false}
                         tick={{ fill: "#475569", fontSize: 13, fontWeight: 600, dy: 25 }}
                       />
                       <YAxis
                         domain={[0, maxOte + padding]}
-                        axisLine={{ stroke: "#94a3b8", strokeWidth: 2 }}
+                        axisLine={{ stroke: "#94a3b8" }}
                         tickLine={false}
                         tick={{ fill: "#475569", fontSize: 13, fontWeight: 600 }}
                         tickFormatter={(value) => {
@@ -1392,6 +1511,8 @@ export default function JourneyPage() {
                         }}
                       />
                       <Tooltip content={<CustomTooltip />} />
+                      <Customized component={AxisArrows} />
+                      <Customized component={InterviewDots} />
                       <Line
                         type="monotone"
                         dataKey="ote"
