@@ -719,7 +719,7 @@ export default function ProcessesPage() {
                             <input
                               type="file"
                               className="hidden"
-                              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.zip"
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {

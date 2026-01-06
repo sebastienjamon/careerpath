@@ -1195,7 +1195,7 @@ export default function ProcessDetailPage() {
                                     <input
                                       type="file"
                                       className="hidden"
-                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt"
+                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.zip"
                                       onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) handleFileUpload(step.id, file);
