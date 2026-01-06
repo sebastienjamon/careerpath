@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Briefcase, Calendar, MapPin, Edit2, Trash2, Sparkles, Linkedin, Upload, Check, Loader2, List, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Customized } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 import { toast } from "sonner";
 
@@ -1184,7 +1184,7 @@ export default function JourneyPage() {
           const tagColor = { bg: "#dcfce7", border: "#22c55e", text: "#15803d" };
 
           const CustomDot = (props: { cx?: number; cy?: number; payload?: typeof chartData[0]; index?: number }) => {
-            const { cx, cy, payload } = props;
+            const { cx, cy, payload, index } = props;
             if (!cx || !cy || !payload) return null;
 
             const currencySymbol = CURRENCIES.find(c => c.value === payload.currency)?.symbol || "$";
@@ -1193,8 +1193,38 @@ export default function JourneyPage() {
             const tagWidth = oteLabel.length * 8 + 16;
             const tagHeight = 24;
 
+            // Get percentage change for this point
+            const showPercent = index !== undefined && index > 0 && payload.percentChange;
+            const isPositive = (payload.percentChange || 0) >= 0;
+            const percentLabel = showPercent ? `${isPositive ? "+" : ""}${Math.round(payload.percentChange || 0)}%` : "";
+
             return (
               <g>
+                {/* Percentage badge - positioned to the upper left of the dot */}
+                {showPercent && (
+                  <g>
+                    <rect
+                      x={cx - 56}
+                      y={cy - 35}
+                      width={52}
+                      height={22}
+                      rx={11}
+                      fill={isPositive ? "#dcfce7" : "#fee2e2"}
+                      stroke={isPositive ? "#22c55e" : "#ef4444"}
+                      strokeWidth={1.5}
+                    />
+                    <text
+                      x={cx - 30}
+                      y={cy - 20}
+                      textAnchor="middle"
+                      fill={isPositive ? "#16a34a" : "#dc2626"}
+                      fontSize={12}
+                      fontWeight={700}
+                    >
+                      {percentLabel}
+                    </text>
+                  </g>
+                )}
                 <circle cx={cx} cy={cy} r={20} fill="white" stroke="#e2e8f0" strokeWidth={2} />
                 {payload.logo && (
                   <image
@@ -1242,60 +1272,6 @@ export default function JourneyPage() {
                     </text>
                   </g>
                 )}
-              </g>
-            );
-          };
-
-          // Render percentage badges at true midpoints between experiences
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const PercentageBadges = (props: any) => {
-            const { formattedGraphicalItems } = props;
-            if (!formattedGraphicalItems || !formattedGraphicalItems[0]) return null;
-
-            const points = formattedGraphicalItems[0]?.props?.points;
-            if (!points || points.length < 2) return null;
-
-            return (
-              <g>
-                {points.map((point: { x: number; y: number }, index: number) => {
-                  if (index === 0) return null;
-                  const prevPoint = points[index - 1];
-                  const data = chartData[index];
-                  if (!data?.percentChange) return null;
-
-                  // True midpoint of the line segment
-                  const midX = (prevPoint.x + point.x) / 2;
-                  const midY = (prevPoint.y + point.y) / 2;
-
-                  const isPositive = data.percentChange >= 0;
-                  const label = `${isPositive ? "+" : ""}${Math.round(data.percentChange)}%`;
-
-                  return (
-                    <g key={`pct-${index}`}>
-                      {/* Badge positioned at the midpoint of the line */}
-                      <rect
-                        x={midX - 28}
-                        y={midY - 12}
-                        width={56}
-                        height={24}
-                        rx={12}
-                        fill={isPositive ? "#dcfce7" : "#fee2e2"}
-                        stroke={isPositive ? "#22c55e" : "#ef4444"}
-                        strokeWidth={1.5}
-                      />
-                      <text
-                        x={midX}
-                        y={midY + 5}
-                        textAnchor="middle"
-                        fill={isPositive ? "#16a34a" : "#dc2626"}
-                        fontSize={13}
-                        fontWeight={700}
-                      >
-                        {label}
-                      </text>
-                    </g>
-                  );
-                })}
               </g>
             );
           };
@@ -1366,7 +1342,7 @@ export default function JourneyPage() {
               <CardContent>
                 <div className="h-96">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 40, right: 30, left: 20, bottom: 60 }}>
+                    <LineChart data={chartData} margin={{ top: 40, right: 30, left: 20, bottom: 80 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                       <XAxis
                         dataKey="year"
@@ -1394,7 +1370,6 @@ export default function JourneyPage() {
                         dot={<CustomDot />}
                         activeDot={{ r: 24, fill: "#3b82f6", stroke: "white", strokeWidth: 3 }}
                       />
-                      <Customized component={PercentageBadges} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
