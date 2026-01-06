@@ -323,10 +323,10 @@ export default function ProcessesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Recruitment Processes</h1>
-          <p className="text-slate-600 mt-1">Track and manage your job applications</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Recruitment Processes</h1>
+          <p className="text-slate-600 mt-1 text-sm sm:text-base">Track and manage your job applications</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -348,7 +348,7 @@ export default function ProcessesPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="company_name">Company</Label>
                   <Input
@@ -411,7 +411,7 @@ export default function ProcessesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
                   <Select
@@ -529,10 +529,10 @@ export default function ProcessesPage() {
             <div className="grid gap-4">
               {filteredProcesses.map((process) => (
                 <Card key={process.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <Link href={`/processes/${process.id}`} className="flex items-center gap-4 flex-1 cursor-pointer hover:opacity-80">
-                        <div className={`h-10 w-10 rounded-lg border shadow-sm flex items-center justify-center overflow-hidden ${
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <Link href={`/processes/${process.id}`} className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 cursor-pointer hover:opacity-80">
+                        <div className={`h-10 w-10 shrink-0 rounded-lg border shadow-sm flex items-center justify-center overflow-hidden ${
                           process.company_website ? "bg-white border-slate-200" : "bg-slate-100 border-slate-200"
                         }`}>
                           {process.company_website && getCompanyLogoUrl(process.company_website) ? (
@@ -548,9 +548,9 @@ export default function ProcessesPage() {
                           ) : null}
                           <Building2 className={`h-5 w-5 text-slate-500 ${process.company_website ? 'hidden' : ''}`} />
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-slate-900">
+                            <h3 className="font-semibold text-slate-900 truncate">
                               {process.company_name}
                             </h3>
                             {process.job_url && (
@@ -566,7 +566,7 @@ export default function ProcessesPage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-slate-600">{process.job_title}</p>
+                          <p className="text-sm text-slate-600 truncate">{process.job_title}</p>
                           <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                             {process.applied_date && (
                               <span className="flex items-center gap-1">

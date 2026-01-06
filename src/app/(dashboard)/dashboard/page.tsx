@@ -131,17 +131,17 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
             Welcome back, {user?.user_metadata?.full_name?.split(" ")[0] || "there"}!
           </h1>
-          <p className="text-slate-600 mt-1">
+          <p className="text-slate-600 mt-1 text-sm sm:text-base">
             Here&apos;s an overview of your career journey
           </p>
         </div>
-        <Link href="/processes">
-          <Button className="gap-2">
+        <Link href="/processes" className="w-full sm:w-auto">
+          <Button className="gap-2 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             New Process
           </Button>
@@ -149,7 +149,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link key={stat.name} href={stat.href}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
@@ -169,7 +169,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Upcoming interviews */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -192,23 +192,23 @@ export default async function DashboardPage() {
                 {upcomingSteps.map((step) => (
                   <div
                     key={step.id}
-                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 rounded-lg"
                   >
-                    <div>
-                      <p className="font-medium text-slate-900">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-900 truncate">
                         {step.recruitment_processes?.company_name}
                       </p>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-sm text-slate-600 truncate">
                         {step.step_type?.replace("_", " ")} - {step.recruitment_processes?.job_title}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right flex items-center gap-2 sm:block">
                       <p className="text-sm font-medium text-slate-900">
                         {step.scheduled_date
                           ? new Date(step.scheduled_date).toLocaleDateString()
                           : "Not scheduled"}
                       </p>
-                      <Badge variant="secondary" className="mt-1">
+                      <Badge variant="secondary" className="sm:mt-1">
                         Step {step.step_number}
                       </Badge>
                     </div>
@@ -251,11 +251,11 @@ export default async function DashboardPage() {
                 {recentProcesses.map((process) => (
                   <div
                     key={process.id}
-                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 rounded-lg"
                   >
-                    <div>
-                      <p className="font-medium text-slate-900">{process.company_name}</p>
-                      <p className="text-sm text-slate-600">{process.job_title}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-900 truncate">{process.company_name}</p>
+                      <p className="text-sm text-slate-600 truncate">{process.job_title}</p>
                     </div>
                     <Badge className={getStatusColor(process.status)}>
                       {process.status?.replace("_", " ")}

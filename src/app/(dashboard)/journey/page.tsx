@@ -355,13 +355,13 @@ export default function JourneyPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Career Journey</h1>
-          <p className="text-slate-600 mt-1">Track your professional experiences over time</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Career Journey</h1>
+          <p className="text-slate-600 mt-1 text-sm sm:text-base">Track your professional experiences over time</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => setIsQuickAddOpen(true)}>
+          <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setIsQuickAddOpen(true)}>
             <Sparkles className="h-4 w-4" />
             Quick Add
           </Button>
@@ -370,7 +370,7 @@ export default function JourneyPage() {
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2 flex-1 sm:flex-none">
                 <Plus className="h-4 w-4" />
                 Add Experience
               </Button>
@@ -385,7 +385,7 @@ export default function JourneyPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="company_name">Company</Label>
                   <Input
@@ -438,7 +438,7 @@ export default function JourneyPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label>Start Date</Label>
                   <div className="flex gap-2">
@@ -617,7 +617,7 @@ export default function JourneyPage() {
                     </Button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-slate-500">Company</Label>
                     <Input
@@ -635,7 +635,7 @@ export default function JourneyPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-5 gap-2 items-end">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
                   <div className="space-y-1">
                     <Label className="text-xs text-slate-500">Start</Label>
                     <Select
@@ -760,18 +760,18 @@ export default function JourneyPage() {
       ) : (
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-slate-200" />
+          <div className="absolute left-4 sm:left-5 top-0 bottom-0 w-0.5 bg-slate-200" />
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {experiences.map((experience, index) => (
-              <div key={experience.id} className="relative flex gap-6">
+              <div key={experience.id} className="relative flex gap-3 sm:gap-6">
                 {/* Timeline dot with company logo */}
                 {(() => {
                   const logoUrl = getCompanyLogoUrl(experience.company_website);
                   const showLogo = logoUrl && !failedLogos.has(experience.id);
                   return (
                     <div
-                      className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-lg border shadow-sm overflow-hidden ${
+                      className={`relative z-10 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg border shadow-sm overflow-hidden flex-shrink-0 ${
                         showLogo
                           ? "bg-white border-slate-200"
                           : experience.is_current
@@ -796,23 +796,24 @@ export default function JourneyPage() {
                 })()}
 
                 {/* Content card */}
-                <Card className="flex-1">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{experience.job_title}</CardTitle>
+                <Card className="flex-1 min-w-0">
+                  <CardHeader className="pb-2 p-3 sm:p-6 sm:pb-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-base sm:text-lg truncate">{experience.job_title}</CardTitle>
                         <CardDescription className="flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3" />
-                          {experience.company_name}
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{experience.company_name}</span>
                         </CardDescription>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 sm:gap-2">
                         {experience.is_current && (
-                          <Badge className="bg-green-100 text-green-700">Current</Badge>
+                          <Badge className="bg-green-100 text-green-700 text-xs">Current</Badge>
                         )}
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8"
                           onClick={() => handleEdit(experience)}
                         >
                           <Edit2 className="h-4 w-4" />
@@ -820,15 +821,15 @@ export default function JourneyPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleDelete(experience.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                     <div className="flex items-center gap-1 text-sm text-slate-500 mb-3">
                       <Calendar className="h-3 w-3" />
                       {formatDate(experience.start_date)} -{" "}

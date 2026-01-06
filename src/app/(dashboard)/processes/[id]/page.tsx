@@ -155,6 +155,16 @@ const getCompanyLogoUrl = (website: string | null): string | null => {
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
 };
 
+// Get contact avatar URL - prioritize photo_url, then email via unavatar, then DiceBear
+const getContactAvatarUrl = (contact: { name: string; email?: string | null; photo_url?: string | null }, useFallback = false): string => {
+  if (!useFallback) {
+    if (contact.photo_url) return contact.photo_url;
+    if (contact.email) return `https://unavatar.io/${encodeURIComponent(contact.email)}?fallback=false`;
+  }
+  // DiceBear open-peeps fallback
+  return `https://api.dicebear.com/7.x/open-peeps/svg?seed=${encodeURIComponent(contact.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+};
+
 export default function ProcessDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -199,6 +209,8 @@ export default function ProcessDetailPage() {
     notes: "",
     photo_url: "",
   });
+  const [contactAvatarErrors, setContactAvatarErrors] = useState<Record<string, boolean>>({});
+  const [formAvatarError, setFormAvatarError] = useState(false);
 
   useEffect(() => {
     fetchProcess();
@@ -447,6 +459,7 @@ export default function ProcessDetailPage() {
       notes: contact.notes || "",
       photo_url: contact.photo_url || "",
     });
+    setFormAvatarError(false);
     setIsContactDialogOpen(true);
   };
 
@@ -566,6 +579,7 @@ export default function ProcessDetailPage() {
     });
     setEditingContact(null);
     setSelectedStepId(null);
+    setFormAvatarError(false);
   };
 
   const handleFileUpload = async (stepId: string, file: File) => {
@@ -695,47 +709,47 @@ export default function ProcessDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         <Link href="/processes">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div className="flex items-center gap-4 flex-1">
-          <div className={`h-12 w-12 rounded-lg border shadow-sm flex items-center justify-center overflow-hidden ${
+        <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+          <div className={`h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-lg border shadow-sm flex items-center justify-center overflow-hidden ${
             process.company_website ? "bg-white border-slate-200" : "bg-slate-100 border-slate-200"
           }`}>
             {process.company_website && getCompanyLogoUrl(process.company_website) ? (
               <img
                 src={getCompanyLogoUrl(process.company_website)!}
                 alt={`${process.company_name} logo`}
-                className="h-8 w-8 object-contain"
+                className="h-6 w-6 sm:h-8 sm:w-8 object-contain"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
             ) : (
-              <Building2 className="h-6 w-6 text-slate-500" />
+              <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-slate-500" />
             )}
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900">{process.company_name}</h1>
+              <h1 className="text-lg sm:text-2xl font-bold text-slate-900 truncate">{process.company_name}</h1>
               {process.job_url && (
                 <a
                   href={process.job_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 shrink-0"
                 >
-                  <ExternalLink className="h-5 w-5" />
+                  <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5" />
                 </a>
               )}
             </div>
-            <p className="text-slate-600">{process.job_title}</p>
+            <p className="text-sm sm:text-base text-slate-600 truncate">{process.job_title}</p>
             {process.applied_date && (
-              <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
-                <Calendar className="h-4 w-4" />
+              <p className="text-xs sm:text-sm text-slate-500 flex items-center gap-1 mt-1">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
                 Applied {new Date(process.applied_date).toLocaleDateString()}
               </p>
             )}
@@ -788,7 +802,7 @@ export default function ProcessDetailPage() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleStepSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label>Step Type</Label>
                     <Select
@@ -831,7 +845,7 @@ export default function ProcessDetailPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label>Date</Label>
                     <Input
@@ -951,18 +965,18 @@ export default function ProcessDetailPage() {
         ) : (
           <div className="relative">
             {/* Timeline line */}
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200" />
+            <div className="absolute left-4 sm:left-6 top-0 bottom-0 w-0.5 bg-slate-200" />
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {steps.map((step, index) => {
                 const StepIcon = getStepIcon(step.step_type);
                 const stepContacts = contacts[step.id] || [];
                 const stepAttachments = attachments[step.id] || [];
 
                 return (
-                  <div key={step.id} className="relative pl-14">
+                  <div key={step.id} className="relative pl-10 sm:pl-14">
                     {/* Timeline dot */}
-                    <div className={`absolute left-3 w-6 h-6 rounded-full flex items-center justify-center ${
+                    <div className={`absolute left-1 sm:left-3 w-6 h-6 rounded-full flex items-center justify-center ${
                       step.status === "completed"
                         ? "bg-green-100 text-green-600"
                         : step.status === "cancelled"
@@ -973,9 +987,9 @@ export default function ProcessDetailPage() {
                     </div>
 
                     <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex-1 min-w-0">
                             {/* Clickable Header */}
                             <button
                               onClick={() => setExpandedSteps(prev => ({ ...prev, [step.id]: !prev[step.id] }))}
@@ -1156,58 +1170,65 @@ export default function ProcessDetailPage() {
 
                               {stepContacts.length > 0 && (
                                 <div className="mt-3 space-y-2">
-                                  {stepContacts.map(contact => (
-                                    <div key={contact.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                                      <div className="flex items-center gap-3">
-                                        {contact.photo_url ? (
-                                          <img
-                                            src={contact.photo_url}
-                                            alt={contact.name}
-                                            className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
-                                          />
-                                        ) : (
-                                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
-                                            {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  {stepContacts.map(contact => {
+                                    const hasCustomAvatar = contact.photo_url || contact.email;
+                                    const avatarUrl = contactAvatarErrors[contact.id]
+                                      ? getContactAvatarUrl(contact, true)
+                                      : getContactAvatarUrl(contact);
+                                    return (
+                                      <div key={contact.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                          <div className="h-10 w-10 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+                                            <img
+                                              src={avatarUrl}
+                                              alt={contact.name}
+                                              className="h-full w-full object-cover"
+                                              onError={() => {
+                                                if (hasCustomAvatar && !contactAvatarErrors[contact.id]) {
+                                                  setContactAvatarErrors(prev => ({ ...prev, [contact.id]: true }));
+                                                }
+                                              }}
+                                            />
                                           </div>
-                                        )}
-                                        <div>
-                                          <p className="text-sm font-medium text-slate-900">{contact.name}</p>
-                                          {contact.role && (
-                                            <p className="text-xs text-slate-500">{contact.role}</p>
-                                          )}
+                                          <div>
+                                            <p className="text-sm font-medium text-slate-900">{contact.name}</p>
+                                            {contact.role && (
+                                              <p className="text-xs text-slate-500">{contact.role}</p>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-2 ml-2">
+                                            {contact.email && (
+                                              <a href={`mailto:${contact.email}`} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                                <Mail className="h-4 w-4" />
+                                              </a>
+                                            )}
+                                            {contact.linkedin_url && (
+                                              <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
+                                                <Linkedin className="h-4 w-4" />
+                                              </a>
+                                            )}
+                                          </div>
                                         </div>
-                                        <div className="flex items-center gap-2 ml-2">
-                                          {contact.email && (
-                                            <a href={`mailto:${contact.email}`} className="text-slate-400 hover:text-slate-600 transition-colors">
-                                              <Mail className="h-4 w-4" />
-                                            </a>
-                                          )}
-                                          {contact.linkedin_url && (
-                                            <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
-                                              <Linkedin className="h-4 w-4" />
-                                            </a>
-                                          )}
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleEditContact(contact, step.id)}
+                                          >
+                                            <Edit2 className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteContact(contact.id, step.id)}
+                                            className="text-red-600 hover:text-red-700"
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEditContact(contact, step.id)}
-                                        >
-                                          <Edit2 className="h-3 w-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleDeleteContact(contact.id, step.id)}
-                                          className="text-red-600 hover:text-red-700"
-                                        >
-                                          <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -1319,6 +1340,35 @@ export default function ProcessDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleContactSubmit} className="space-y-4">
+            {/* Avatar Preview */}
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {contactFormData.name ? (
+                  <img
+                    src={
+                      formAvatarError
+                        ? getContactAvatarUrl({ name: contactFormData.name, email: contactFormData.email, photo_url: contactFormData.photo_url }, true)
+                        : getContactAvatarUrl({ name: contactFormData.name, email: contactFormData.email, photo_url: contactFormData.photo_url })
+                    }
+                    alt="Avatar preview"
+                    className="h-full w-full object-cover"
+                    onError={() => {
+                      if ((contactFormData.photo_url || contactFormData.email) && !formAvatarError) {
+                        setFormAvatarError(true);
+                      }
+                    }}
+                  />
+                ) : (
+                  <User className="h-8 w-8 text-slate-400" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-slate-600">
+                  Each contact gets a unique avatar. Add email for their real photo.
+                </p>
+              </div>
+            </div>
+
             {/* LinkedIn URL - auto-fills name when valid URL is pasted */}
             <div className="space-y-2">
               <Label>LinkedIn URL <span className="text-slate-400 font-normal">(optional)</span></Label>
@@ -1331,36 +1381,36 @@ export default function ProcessDetailPage() {
                   className="pl-9"
                 />
               </div>
-              {!contactFormData.linkedin_url && (
-                <p className="text-xs text-slate-500">
-                  Paste a LinkedIn URL to auto-fill the name
-                </p>
-              )}
+              <p className="text-xs text-slate-500">
+                Paste a LinkedIn URL to auto-fill the name
+              </p>
             </div>
 
-            {/* Show extracted info preview */}
-            {contactFormData.linkedin_url && contactFormData.name && (
-              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
-                  {contactFormData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-900">{contactFormData.name}</p>
-                  <p className="text-xs text-green-600">Name extracted from LinkedIn URL</p>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Name <span className="text-red-500">*</span></Label>
+                <Input
+                  value={contactFormData.name}
+                  onChange={(e) =>
+                    setContactFormData({ ...contactFormData, name: e.target.value })
+                  }
+                  placeholder="John Smith"
+                  required
+                />
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label>Name <span className="text-red-500">*</span></Label>
-              <Input
-                value={contactFormData.name}
-                onChange={(e) =>
-                  setContactFormData({ ...contactFormData, name: e.target.value })
-                }
-                placeholder="John Smith"
-                required
-              />
+              <div className="space-y-2">
+                <Label>Email <span className="text-slate-400 font-normal">(for avatar)</span></Label>
+                <Input
+                  type="email"
+                  value={contactFormData.email}
+                  onChange={(e) => {
+                    setContactFormData({ ...contactFormData, email: e.target.value });
+                    setFormAvatarError(false);
+                  }}
+                  placeholder="john@company.com"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -1371,18 +1421,6 @@ export default function ProcessDetailPage() {
                   setContactFormData({ ...contactFormData, role: e.target.value })
                 }
                 placeholder="Engineering Manager"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={contactFormData.email}
-                onChange={(e) =>
-                  setContactFormData({ ...contactFormData, email: e.target.value })
-                }
-                placeholder="john@company.com"
               />
             </div>
 

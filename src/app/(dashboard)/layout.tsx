@@ -30,8 +30,8 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-slate-50">
       <DashboardNav user={user} isCoach={isCoach} />
-      <main className="lg:pl-72">
-        <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+      <main className="lg:pl-72 overflow-x-hidden">
+        <div className="w-full max-w-full px-3 py-4 sm:px-4 sm:py-6 lg:px-8">{children}</div>
       </main>
       <Toaster />
     </div>

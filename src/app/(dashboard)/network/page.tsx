@@ -30,7 +30,9 @@ interface NetworkConnection {
   id: string;
   user_id: string;
   name: string;
+  email: string | null;
   linkedin_url: string | null;
+  avatar_url: string | null;
   company: string | null;
   role: string | null;
   relationship_strength: 'strong' | 'medium' | 'weak';
@@ -39,6 +41,26 @@ interface NetworkConnection {
   created_at: string;
   updated_at: string;
 }
+
+// Get avatar URL - prioritize custom URL, then unavatar.io with email, then DiceBear
+const getAvatarUrl = (connection: NetworkConnection, useFallback = false): string => {
+  if (!useFallback) {
+    if (connection.avatar_url) return connection.avatar_url;
+    if (connection.email) return `https://unavatar.io/${encodeURIComponent(connection.email)}?fallback=false`;
+  }
+  // DiceBear open-peeps fallback - generates consistent avatar based on name
+  return `https://api.dicebear.com/7.x/open-peeps/svg?seed=${encodeURIComponent(connection.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+};
+
+// Get preview avatar for form
+const getPreviewAvatarUrl = (name: string, email: string, avatarUrl: string, useFallback = false): string | null => {
+  if (!useFallback) {
+    if (avatarUrl) return avatarUrl;
+    if (email) return `https://unavatar.io/${encodeURIComponent(email)}?fallback=false`;
+  }
+  if (name) return `https://api.dicebear.com/7.x/open-peeps/svg?seed=${encodeURIComponent(name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  return null;
+};
 
 const STRENGTH_OPTIONS = [
   { value: "strong", label: "Strong", color: "bg-green-100 text-green-700" },
@@ -55,13 +77,17 @@ export default function NetworkPage() {
 
   const [formData, setFormData] = useState({
     name: "",
+    email: "",
     linkedin_url: "",
+    avatar_url: "",
     company: "",
     role: "",
     relationship_strength: "medium" as NetworkConnection["relationship_strength"],
     can_help_with: "",
     last_contacted: "",
   });
+  const [avatarError, setAvatarError] = useState<Record<string, boolean>>({});
+  const [formAvatarError, setFormAvatarError] = useState(false);
 
   useEffect(() => {
     fetchConnections();
@@ -91,7 +117,9 @@ export default function NetworkPage() {
     const connectionData = {
       user_id: user.id,
       name: formData.name,
+      email: formData.email || null,
       linkedin_url: formData.linkedin_url || null,
+      avatar_url: formData.avatar_url || null,
       company: formData.company || null,
       role: formData.role || null,
       relationship_strength: formData.relationship_strength,
@@ -129,13 +157,16 @@ export default function NetworkPage() {
     setEditingConnection(connection);
     setFormData({
       name: connection.name,
+      email: connection.email || "",
       linkedin_url: connection.linkedin_url || "",
+      avatar_url: connection.avatar_url || "",
       company: connection.company || "",
       role: connection.role || "",
       relationship_strength: connection.relationship_strength,
       can_help_with: connection.can_help_with?.join(", ") || "",
       last_contacted: connection.last_contacted || "",
     });
+    setFormAvatarError(false);
     setIsDialogOpen(true);
   };
 
@@ -156,7 +187,9 @@ export default function NetworkPage() {
   const resetForm = () => {
     setFormData({
       name: "",
+      email: "",
       linkedin_url: "",
+      avatar_url: "",
       company: "",
       role: "",
       relationship_strength: "medium",
@@ -164,6 +197,7 @@ export default function NetworkPage() {
       last_contacted: "",
     });
     setEditingConnection(null);
+    setFormAvatarError(false);
   };
 
   const getStrengthBadge = (strength: string) => {
@@ -177,10 +211,10 @@ export default function NetworkPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Network</h1>
-          <p className="text-slate-600 mt-1">Manage your professional connections</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Network</h1>
+          <p className="text-slate-600 mt-1 text-sm sm:text-base">Manage your professional connections</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -202,17 +236,57 @@ export default function NetworkPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
+              {/* Avatar Preview */}
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {getPreviewAvatarUrl(formData.name, formData.email, formData.avatar_url, formAvatarError) ? (
+                    <img
+                      src={getPreviewAvatarUrl(formData.name, formData.email, formData.avatar_url, formAvatarError)!}
+                      alt="Avatar preview"
+                      className="h-full w-full object-cover"
+                      onError={() => {
+                        if ((formData.avatar_url || formData.email) && !formAvatarError) {
+                          setFormAvatarError(true);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span className="text-purple-600 font-semibold text-xl">?</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-600">
+                    Each contact gets a unique avatar. Add email for their real photo, or paste a custom URL.
+                  </p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email (for avatar)</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      setFormAvatarError(false);
+                    }}
+                    placeholder="contact@example.com"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="company">Company</Label>
                   <Input
@@ -242,7 +316,24 @@ export default function NetworkPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="avatar_url">Custom Avatar URL (optional)</Label>
+                <Input
+                  id="avatar_url"
+                  type="url"
+                  value={formData.avatar_url}
+                  onChange={(e) => {
+                    setFormData({ ...formData, avatar_url: e.target.value });
+                    setFormAvatarError(false);
+                  }}
+                  placeholder="https://example.com/photo.jpg"
+                />
+                <p className="text-xs text-slate-500">
+                  Paste a direct link to their photo if email lookup doesn&apos;t work
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="relationship_strength">Relationship Strength</Label>
                   <Select
@@ -317,72 +408,87 @@ export default function NetworkPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {connections.map((connection) => (
-            <Card key={connection.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-semibold">
-                      {connection.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-slate-900">{connection.name}</h3>
-                        {connection.linkedin_url && (
-                          <a
-                            href={connection.linkedin_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:text-blue-600"
-                          >
-                            <Linkedin className="h-4 w-4" />
-                          </a>
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {connections.map((connection) => {
+            const hasCustomAvatar = connection.avatar_url || connection.email;
+            const avatarUrl = avatarError[connection.id]
+              ? getAvatarUrl(connection, true)  // Use DiceBear fallback
+              : getAvatarUrl(connection);
+            return (
+              <Card key={connection.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <img
+                          src={avatarUrl}
+                          alt={connection.name}
+                          className="h-full w-full object-cover"
+                          onError={() => {
+                            if (hasCustomAvatar && !avatarError[connection.id]) {
+                              setAvatarError(prev => ({ ...prev, [connection.id]: true }));
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-slate-900 truncate">{connection.name}</h3>
+                          {connection.linkedin_url && (
+                            <a
+                              href={connection.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:text-blue-600 flex-shrink-0"
+                            >
+                              <Linkedin className="h-4 w-4" />
+                            </a>
+                          )}
+                        </div>
+                        {(connection.role || connection.company) && (
+                          <p className="text-sm text-slate-600 truncate">
+                            {connection.role}{connection.role && connection.company && " at "}{connection.company}
+                          </p>
                         )}
                       </div>
-                      {(connection.role || connection.company) && (
-                        <p className="text-sm text-slate-600">
-                          {connection.role}{connection.role && connection.company && " at "}{connection.company}
-                        </p>
-                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(connection)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDelete(connection.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(connection)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(connection.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
 
-                <div className="mt-3 flex items-center gap-2">
-                  {getStrengthBadge(connection.relationship_strength)}
-                  {connection.last_contacted && (
-                    <span className="text-xs text-slate-500">
-                      Last contacted: {new Date(connection.last_contacted).toLocaleDateString()}
-                    </span>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {getStrengthBadge(connection.relationship_strength)}
+                    {connection.last_contacted && (
+                      <span className="text-xs text-slate-500">
+                        Last: {new Date(connection.last_contacted).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+
+                  {connection.can_help_with && connection.can_help_with.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {connection.can_help_with.map((help, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {help}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
-                </div>
-
-                {connection.can_help_with && connection.can_help_with.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {connection.can_help_with.map((help, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {help}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

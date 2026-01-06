@@ -202,23 +202,23 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="text-slate-600 mt-1">Manage your account preferences</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Settings</h1>
+        <p className="text-slate-600 mt-1 text-sm sm:text-base">Manage your account preferences</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="profile" className="gap-2">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="profile" className="gap-1 sm:gap-2 flex-1 sm:flex-none text-xs sm:text-sm">
             <User className="h-4 w-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="gap-2">
+          <TabsTrigger value="integrations" className="gap-1 sm:gap-2 flex-1 sm:flex-none text-xs sm:text-sm">
             <Linkedin className="h-4 w-4" />
             Integrations
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
+          <TabsTrigger value="notifications" className="gap-1 sm:gap-2 flex-1 sm:flex-none text-xs sm:text-sm">
             <Bell className="h-4 w-4" />
-            Notifications
+            Alerts
           </TabsTrigger>
         </TabsList>
 
@@ -308,25 +308,25 @@ export default function SettingsPage() {
             <CardContent>
               {isLinkedInConnected ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                         <AvatarImage src={user?.linkedin_data?.picture} />
                         <AvatarFallback className="bg-blue-600 text-white">
-                          <Linkedin className="h-6 w-6" />
+                          <Linkedin className="h-5 w-5 sm:h-6 sm:w-6" />
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-slate-900">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-medium text-slate-900 truncate">
                             {user?.linkedin_data?.name}
                           </h3>
-                          <Badge className="bg-green-100 text-green-700 gap-1">
+                          <Badge className="bg-green-100 text-green-700 gap-1 text-xs">
                             <CheckCircle2 className="h-3 w-3" />
                             Connected
                           </Badge>
                         </div>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-slate-500 truncate">
                           {user?.linkedin_data?.email}
                         </p>
                         <p className="text-xs text-slate-400 mt-1">
@@ -342,9 +342,10 @@ export default function SettingsPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <Button variant="outline" size="sm" className="gap-1">
+                          <Button variant="outline" size="sm" className="gap-1 text-xs sm:text-sm">
                             <ExternalLink className="h-4 w-4" />
-                            View Profile
+                            <span className="hidden sm:inline">View Profile</span>
+                            <span className="sm:hidden">View</span>
                           </Button>
                         </a>
                       )}
@@ -352,41 +353,41 @@ export default function SettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={handleDisconnectLinkedIn}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs sm:text-sm"
                       >
                         Disconnect
                       </Button>
                     </div>
                   </div>
 
-                  <div className="p-4 bg-slate-50 rounded-lg">
+                  <div className="p-3 sm:p-4 bg-slate-50 rounded-lg">
                     <h4 className="font-medium text-slate-900 mb-2">Imported Data</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
                       <div>
                         <span className="text-slate-500">Name:</span>{" "}
                         <span className="text-slate-900">{user?.linkedin_data?.name}</span>
                       </div>
                       <div>
                         <span className="text-slate-500">Email:</span>{" "}
-                        <span className="text-slate-900">{user?.linkedin_data?.email}</span>
+                        <span className="text-slate-900 break-all">{user?.linkedin_data?.email}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-blue-600 flex items-center justify-center">
-                      <Linkedin className="h-6 w-6 text-white" />
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                      <Linkedin className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-medium text-slate-900">LinkedIn</h3>
                       <p className="text-sm text-slate-500">
-                        Verify your identity with LinkedIn (name, email, photo)
+                        Verify your identity with LinkedIn
                       </p>
                     </div>
                   </div>
-                  <Button onClick={handleConnectLinkedIn}>Connect</Button>
+                  <Button onClick={handleConnectLinkedIn} className="w-full sm:w-auto">Connect</Button>
                 </div>
               )}
             </CardContent>
@@ -402,15 +403,15 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               {isCalendarConnected ? (
-                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-white border flex items-center justify-center">
-                      <Calendar className="h-6 w-6 text-blue-600" />
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-white border flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-medium text-slate-900">Google Calendar</h3>
-                        <Badge className="bg-green-100 text-green-700 gap-1">
+                        <Badge className="bg-green-100 text-green-700 gap-1 text-xs">
                           <CheckCircle2 className="h-3 w-3" />
                           Connected
                         </Badge>
@@ -425,26 +426,26 @@ export default function SettingsPage() {
                     size="sm"
                     onClick={handleDisconnectCalendar}
                     disabled={isDisconnectingCalendar}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full sm:w-auto"
                   >
                     {isDisconnectingCalendar && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Disconnect
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-white border flex items-center justify-center">
-                      <Calendar className="h-6 w-6 text-slate-400" />
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-white border flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-slate-400" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-medium text-slate-900">Google Calendar</h3>
                       <p className="text-sm text-slate-500">
                         Link calendar events to interview steps
                       </p>
                     </div>
                   </div>
-                  <Button onClick={handleConnectCalendar}>Connect</Button>
+                  <Button onClick={handleConnectCalendar} className="w-full sm:w-auto">Connect</Button>
                 </div>
               )}
             </CardContent>
@@ -462,12 +463,12 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-slate-600">
                   Use our Quick Add feature to rapidly enter your work history while referencing your LinkedIn profile.
                 </p>
-                <Link href="/journey">
-                  <Button className="gap-2">
+                <Link href="/journey" className="w-full sm:w-auto">
+                  <Button className="gap-2 w-full sm:w-auto">
                     Go to Career Journey
                     <ArrowRight className="h-4 w-4" />
                   </Button>
