@@ -162,8 +162,8 @@ const getContactAvatarUrl = (contact: { name: string; email?: string | null; pho
     if (contact.photo_url) return contact.photo_url;
     if (contact.email) return `https://unavatar.io/${encodeURIComponent(contact.email)}?fallback=false`;
   }
-  // DiceBear open-peeps
-  return `https://api.dicebear.com/9.x/open-peeps/svg?seed=${encodeURIComponent(contact.name)}&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  // DiceBear open-peeps - only smiling faces
+  return `https://api.dicebear.com/9.x/open-peeps/svg?seed=${encodeURIComponent(contact.name)}&face=smile,smileBig,smileLOL,smileTeethGap,lovingGrin1,lovingGrin2,eatingHappy,cute,cheeky&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
 };
 
 export default function ProcessDetailPage() {
