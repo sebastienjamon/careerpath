@@ -37,6 +37,7 @@ import {
   Upload,
   X,
   Loader2,
+  UserCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -51,9 +52,19 @@ interface RecruitmentProcess {
   status: 'upcoming' | 'in_progress' | 'completed' | 'rejected' | 'offer_received' | 'accepted';
   applied_date: string | null;
   source: 'linkedin' | 'referral' | 'direct' | 'other';
+  referral_contact_id: string | null;
+  referral_contact?: NetworkConnection | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface NetworkConnection {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  company: string | null;
+  role: string | null;
 }
 
 // Extract domain from URL or domain string
@@ -75,6 +86,15 @@ const getCompanyLogoUrl = (website: string | null): string | null => {
   const domain = extractDomain(website);
   if (!domain) return null;
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+};
+
+// DiceBear avatar URL for network connections
+const DICEBEAR_BASE = "https://api.dicebear.com/9.x/open-peeps/svg";
+const DICEBEAR_OPTIONS = "face=smile,smileBig,smileLOL,smileTeethGap,lovingGrin1,lovingGrin2,eatingHappy,cute,cheeky&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4";
+
+const getAvatarUrl = (connection: NetworkConnection): string => {
+  if (connection.avatar_url) return connection.avatar_url;
+  return `${DICEBEAR_BASE}?seed=${encodeURIComponent(connection.name)}&${DICEBEAR_OPTIONS}`;
 };
 
 interface Attachment {
@@ -113,6 +133,7 @@ export default function ProcessesPage() {
   const [expandedProcess, setExpandedProcess] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, Attachment[]>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [networkConnections, setNetworkConnections] = useState<NetworkConnection[]>([]);
 
   const [formData, setFormData] = useState({
     company_name: "",
@@ -121,18 +142,38 @@ export default function ProcessesPage() {
     job_url: "",
     status: "upcoming" as RecruitmentProcess["status"],
     source: "other" as RecruitmentProcess["source"],
+    referral_contact_id: "",
     applied_date: "",
     notes: "",
   });
 
   useEffect(() => {
     fetchProcesses();
+    fetchNetworkConnections();
   }, []);
+
+  const fetchNetworkConnections = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("network_connections")
+      .select("id, name, avatar_url, company, role")
+      .eq("user_id", user.id)
+      .order("name", { ascending: true });
+
+    setNetworkConnections(data || []);
+  };
 
   const fetchProcesses = async () => {
     const { data, error } = await supabase
       .from("recruitment_processes")
-      .select("*")
+      .select(`
+        *,
+        referral_contact:network_connections!referral_contact_id (
+          id, name, avatar_url, company, role
+        )
+      `)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -158,6 +199,7 @@ export default function ProcessesPage() {
       job_url: formData.job_url || null,
       status: formData.status,
       source: formData.source,
+      referral_contact_id: formData.source === "referral" && formData.referral_contact_id ? formData.referral_contact_id : null,
       applied_date: formData.applied_date || null,
       notes: formData.notes || null,
     };
@@ -197,6 +239,7 @@ export default function ProcessesPage() {
       job_url: process.job_url || "",
       status: process.status,
       source: process.source,
+      referral_contact_id: process.referral_contact_id || "",
       applied_date: process.applied_date || "",
       notes: process.notes || "",
     });
@@ -225,6 +268,7 @@ export default function ProcessesPage() {
       job_url: "",
       status: "upcoming",
       source: "other",
+      referral_contact_id: "",
       applied_date: "",
       notes: "",
     });
@@ -454,6 +498,50 @@ export default function ProcessesPage() {
                 </div>
               </div>
 
+              {/* Referral Contact Selector - only visible when source is referral */}
+              {formData.source === "referral" && (
+                <div className="space-y-2">
+                  <Label htmlFor="referral_contact">Referred by</Label>
+                  {networkConnections.length > 0 ? (
+                    <Select
+                      value={formData.referral_contact_id}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, referral_contact_id: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select who referred you..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {networkConnections.map((contact) => (
+                          <SelectItem key={contact.id} value={contact.id}>
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={getAvatarUrl(contact)}
+                                alt={contact.name}
+                                className="h-5 w-5 rounded-full"
+                              />
+                              <span>{contact.name}</span>
+                              {contact.company && (
+                                <span className="text-slate-400 text-xs">at {contact.company}</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-slate-500 py-2">
+                      No network contacts yet. Add contacts in the{" "}
+                      <Link href="/network" className="text-blue-600 hover:underline">
+                        Network
+                      </Link>{" "}
+                      tab first.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="applied_date">Applied Date</Label>
                 <Input
@@ -574,7 +662,18 @@ export default function ProcessesPage() {
                                 Applied {new Date(process.applied_date).toLocaleDateString()}
                               </span>
                             )}
-                            <span className="capitalize">via {process.source}</span>
+                            {process.source === "referral" && process.referral_contact ? (
+                              <span className="flex items-center gap-1">
+                                <img
+                                  src={getAvatarUrl(process.referral_contact)}
+                                  alt={process.referral_contact.name}
+                                  className="h-4 w-4 rounded-full"
+                                />
+                                via {process.referral_contact.name}
+                              </span>
+                            ) : (
+                              <span className="capitalize">via {process.source}</span>
+                            )}
                           </div>
                         </div>
                       </Link>

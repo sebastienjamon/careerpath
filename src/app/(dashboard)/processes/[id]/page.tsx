@@ -61,6 +61,14 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { EventPicker } from "@/components/calendar/event-picker";
 
+interface NetworkConnection {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  company: string | null;
+  role: string | null;
+}
+
 interface RecruitmentProcess {
   id: string;
   user_id: string;
@@ -71,6 +79,8 @@ interface RecruitmentProcess {
   status: 'upcoming' | 'in_progress' | 'completed' | 'rejected' | 'offer_received' | 'accepted';
   applied_date: string | null;
   source: 'linkedin' | 'referral' | 'direct' | 'other';
+  referral_contact_id: string | null;
+  referral_contact?: NetworkConnection | null;
   notes: string | null;
   created_at: string;
 }
@@ -158,6 +168,15 @@ const getCompanyLogoUrl = (website: string | null): string | null => {
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
 };
 
+// DiceBear avatar URL for network connections
+const DICEBEAR_BASE = "https://api.dicebear.com/9.x/open-peeps/svg";
+const DICEBEAR_OPTIONS = "face=smile,smileBig,smileLOL,smileTeethGap,lovingGrin1,lovingGrin2,eatingHappy,cute,cheeky&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4";
+
+const getNetworkAvatarUrl = (connection: NetworkConnection): string => {
+  if (connection.avatar_url) return connection.avatar_url;
+  return `${DICEBEAR_BASE}?seed=${encodeURIComponent(connection.name)}&${DICEBEAR_OPTIONS}`;
+};
+
 // Get contact avatar URL - prioritize photo_url, then email via unavatar, then DiceBear
 const getContactAvatarUrl = (contact: { name: string; email?: string | null; photo_url?: string | null }, useFallback = false): string => {
   if (!useFallback) {
@@ -165,7 +184,7 @@ const getContactAvatarUrl = (contact: { name: string; email?: string | null; pho
     if (contact.email) return `https://unavatar.io/${encodeURIComponent(contact.email)}?fallback=false`;
   }
   // DiceBear open-peeps - only smiling faces
-  return `https://api.dicebear.com/9.x/open-peeps/svg?seed=${encodeURIComponent(contact.name)}&face=smile,smileBig,smileLOL,smileTeethGap,lovingGrin1,lovingGrin2,eatingHappy,cute,cheeky&backgroundColor=c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4`;
+  return `${DICEBEAR_BASE}?seed=${encodeURIComponent(contact.name)}&${DICEBEAR_OPTIONS}`;
 };
 
 export default function ProcessDetailPage() {
@@ -259,7 +278,12 @@ export default function ProcessDetailPage() {
   const fetchProcess = async () => {
     const { data, error } = await supabase
       .from("recruitment_processes")
-      .select("*")
+      .select(`
+        *,
+        referral_contact:network_connections!referral_contact_id (
+          id, name, avatar_url, company, role
+        )
+      `)
       .eq("id", processId)
       .single();
 
@@ -807,12 +831,24 @@ export default function ProcessDetailPage() {
               )}
             </div>
             <p className="text-sm sm:text-base text-slate-600 truncate">{process.job_title}</p>
-            {process.applied_date && (
-              <p className="text-xs sm:text-sm text-slate-500 flex items-center gap-1 mt-1">
-                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                Applied {new Date(process.applied_date).toLocaleDateString()}
-              </p>
-            )}
+            <div className="flex items-center gap-3 mt-1 flex-wrap">
+              {process.applied_date && (
+                <p className="text-xs sm:text-sm text-slate-500 flex items-center gap-1">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                  Applied {new Date(process.applied_date).toLocaleDateString()}
+                </p>
+              )}
+              {process.source === "referral" && process.referral_contact && (
+                <span className="text-xs sm:text-sm text-slate-500 flex items-center gap-1.5">
+                  <img
+                    src={getNetworkAvatarUrl(process.referral_contact)}
+                    alt={process.referral_contact.name}
+                    className="h-4 w-4 rounded-full"
+                  />
+                  Referred by {process.referral_contact.name}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
