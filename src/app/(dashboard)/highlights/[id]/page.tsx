@@ -118,7 +118,7 @@ export default async function HighlightDetailPage({ params }: PageProps) {
                     <span className="text-xs text-slate-400 uppercase tracking-wide">Values</span>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {highlight.reflection_tags.map((tag: string) => (
-                        <Badge key={tag} variant="secondary" className="bg-purple-100 text-purple-800">
+                        <Badge key={tag} variant="secondary" className="bg-emerald-100 text-emerald-800">
                           {tag}
                         </Badge>
                       ))}
@@ -195,21 +195,21 @@ export default async function HighlightDetailPage({ params }: PageProps) {
 
         {/* Reflection Section */}
         {highlight.reflection && (
-          <Card className="border-purple-200 bg-purple-50/30">
+          <Card className="border-emerald-200 bg-emerald-50/30">
             <CardContent className="p-6">
               <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center text-purple-800 font-bold">
+                <span className="w-8 h-8 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-800 font-bold">
                   ?
                 </span>
-                <span className="text-purple-800">What This Demonstrates</span>
+                <span className="text-emerald-800">What This Demonstrates</span>
               </h2>
               <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
                 {highlight.reflection}
               </p>
               {highlight.reflection_tags && highlight.reflection_tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-purple-200">
+                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-emerald-200">
                   {highlight.reflection_tags.map((tag: string) => (
-                    <Badge key={tag} variant="secondary" className="bg-purple-100 text-purple-800">
+                    <Badge key={tag} variant="secondary" className="bg-emerald-100 text-emerald-800">
                       {tag}
                     </Badge>
                   ))}
