@@ -671,13 +671,13 @@ export default function HighlightsPage() {
                         <Badge
                           key={tag}
                           variant="secondary"
-                          className="gap-1 pr-1 bg-amber-100 text-amber-800 hover:bg-amber-200"
+                          className="gap-1 pr-1 bg-purple-100 text-purple-800 hover:bg-purple-200"
                         >
                           {tag}
                           <button
                             type="button"
                             onClick={() => removeReflectionTag(tag)}
-                            className="ml-1 hover:bg-amber-300 rounded-full p-0.5"
+                            className="ml-1 hover:bg-purple-300 rounded-full p-0.5"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -844,7 +844,7 @@ export default function HighlightsPage() {
                           <Badge
                             key={tag}
                             variant="secondary"
-                            className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800"
+                            className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-800"
                           >
                             {tag}
                           </Badge>
