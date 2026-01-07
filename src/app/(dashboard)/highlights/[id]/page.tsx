@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Building2, Calendar } from "lucide-react";
+import { AttachmentsSection } from "./attachments-section";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -19,12 +20,22 @@ export default async function HighlightDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const { data: highlight, error } = await supabase
-    .from("career_highlights")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .single();
+  const [highlightResult, attachmentsResult] = await Promise.all([
+    supabase
+      .from("career_highlights")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single(),
+    supabase
+      .from("highlight_attachments")
+      .select("*")
+      .eq("highlight_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const { data: highlight, error } = highlightResult;
+  const attachments = attachmentsResult.data || [];
 
   if (error || !highlight) {
     notFound();
@@ -208,6 +219,9 @@ export default async function HighlightDetailPage({ params }: PageProps) {
           </Card>
         )}
       </div>
+
+      {/* Attachments */}
+      <AttachmentsSection highlightId={id} initialAttachments={attachments} />
 
       {/* Footer */}
       <div className="flex justify-center pt-4">

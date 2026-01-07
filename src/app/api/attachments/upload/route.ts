@@ -14,13 +14,14 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
     const processId = formData.get("processId") as string | null;
     const stepId = formData.get("stepId") as string | null;
+    const highlightId = formData.get("highlightId") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "File is required" }, { status: 400 });
     }
 
-    if (!processId && !stepId) {
-      return NextResponse.json({ error: "processId or stepId is required" }, { status: 400 });
+    if (!processId && !stepId && !highlightId) {
+      return NextResponse.json({ error: "processId, stepId, or highlightId is required" }, { status: 400 });
     }
 
     // Validate file type (allow common document types)
@@ -50,7 +51,11 @@ export async function POST(request: NextRequest) {
 
     // Generate unique file path
     const fileExt = file.name.split(".").pop();
-    const pathPrefix = stepId ? `steps/${stepId}` : `processes/${processId}`;
+    const pathPrefix = stepId
+      ? `steps/${stepId}`
+      : highlightId
+        ? `highlights/${highlightId}`
+        : `processes/${processId}`;
     const fileName = `${user.id}/${pathPrefix}/${Date.now()}.${fileExt}`;
 
     // Upload to Supabase Storage
@@ -72,8 +77,16 @@ export async function POST(request: NextRequest) {
       .getPublicUrl(fileName);
 
     // Save attachment record to appropriate table
-    const table = stepId ? "step_attachments" : "process_attachments";
-    const foreignKey = stepId ? { step_id: stepId } : { process_id: processId };
+    const table = stepId
+      ? "step_attachments"
+      : highlightId
+        ? "highlight_attachments"
+        : "process_attachments";
+    const foreignKey = stepId
+      ? { step_id: stepId }
+      : highlightId
+        ? { highlight_id: highlightId }
+        : { process_id: processId };
 
     const { data: attachment, error: dbError } = await supabase
       .from(table)

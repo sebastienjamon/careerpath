@@ -14,30 +14,44 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get attachment to find storage path
-    const { data: attachment, error: fetchError } = await supabase
-      .from("process_attachments")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
+    // Try to find attachment in all tables
+    const tables = ["process_attachments", "step_attachments", "highlight_attachments"];
+    let attachment = null;
+    let foundTable = null;
 
-    if (fetchError || !attachment) {
+    for (const table of tables) {
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!error && data) {
+        attachment = data;
+        foundTable = table;
+        break;
+      }
+    }
+
+    if (!attachment || !foundTable) {
       return NextResponse.json({ error: "Attachment not found" }, { status: 404 });
     }
 
-    // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from("process-documents")
-      .remove([attachment.storage_path]);
+    // Delete from storage if it has a storage path (not just a link)
+    if (attachment.storage_path) {
+      const { error: storageError } = await supabase.storage
+        .from("process-documents")
+        .remove([attachment.storage_path]);
 
-    if (storageError) {
-      console.error("Storage delete error:", storageError);
+      if (storageError) {
+        console.error("Storage delete error:", storageError);
+      }
     }
 
     // Delete from database
     const { error: dbError } = await supabase
-      .from("process_attachments")
+      .from(foundTable)
       .delete()
       .eq("id", id);
 
