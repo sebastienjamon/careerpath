@@ -76,6 +76,7 @@ interface NetworkConnection {
   avatar_url: string | null;
   company: string | null;
   role: string | null;
+  linkedin_url?: string | null;
 }
 
 interface RecruitmentProcess {
