@@ -218,15 +218,33 @@ export default function ProcessesPage() {
         hiring_manager_contact:network_connections!hiring_manager_contact_id (
           id, name, avatar_url, company, role
         )
-      `)
-      .order("applied_date", { ascending: false, nullsFirst: false });
+      `);
 
     if (error) {
       toast.error("Failed to load processes");
       return;
     }
 
-    setProcesses(data || []);
+    // Sort: upcoming first, then in_progress, then by applied_date descending
+    const statusOrder: Record<string, number> = {
+      upcoming: 0,
+      in_progress: 1,
+      offer_received: 2,
+      accepted: 3,
+      completed: 4,
+      rejected: 5,
+    };
+
+    const sorted = (data || []).sort((a, b) => {
+      const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+      if (statusDiff !== 0) return statusDiff;
+      // Within same status, sort by applied_date descending
+      const dateA = a.applied_date ? new Date(a.applied_date).getTime() : 0;
+      const dateB = b.applied_date ? new Date(b.applied_date).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    setProcesses(sorted);
     setIsLoading(false);
   };
 
