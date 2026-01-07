@@ -380,10 +380,10 @@ export default function ProcessDetailPage() {
       <div className="space-y-4">
         {/* Linked Step Reference */}
         {linkedStep && (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
-            <Link2 className="h-4 w-4 text-slate-500" />
-            <span className="text-sm text-slate-600">
-              Reflecting on <span className="font-medium text-slate-900">Step {linkedStep.step_number}: {linkedStep.description || STEP_TYPE_OPTIONS.find(o => o.value === linkedStep.step_type)?.label}</span>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2 min-w-0">
+            <Link2 className="h-4 w-4 text-slate-500 flex-shrink-0" />
+            <span className="text-sm text-slate-600 truncate">
+              Reflecting on <span className="font-medium text-slate-900">Step {linkedStep.step_number}: {(linkedStep.description || STEP_TYPE_OPTIONS.find(o => o.value === linkedStep.step_type)?.label || '').slice(0, 60)}{(linkedStep.description || '').length > 60 ? '...' : ''}</span>
             </span>
           </div>
         )}
@@ -1735,14 +1735,16 @@ export default function ProcessDetailPage() {
                         <SelectTrigger>
                           <SelectValue placeholder="Select the step you're reflecting on..." />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-w-[calc(100vw-4rem)]">
                           {steps
                             .filter(s => s.step_type !== 'output' && s.id !== editingStep?.id)
                             .map((s) => {
                               const typeLabel = STEP_TYPE_OPTIONS.find(o => o.value === s.step_type)?.label || s.step_type;
+                              const displayText = s.description || typeLabel;
+                              const truncatedText = displayText.length > 50 ? displayText.substring(0, 50) + '...' : displayText;
                               return (
-                                <SelectItem key={s.id} value={s.id}>
-                                  Step {s.step_number}: {s.description || typeLabel}
+                                <SelectItem key={s.id} value={s.id} className="max-w-full">
+                                  <span className="truncate">Step {s.step_number}: {truncatedText}</span>
                                 </SelectItem>
                               );
                             })}
