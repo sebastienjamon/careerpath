@@ -58,11 +58,14 @@ import {
   Link2,
   Heart,
   UserPlus,
+  GraduationCap,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { EventPicker } from "@/components/calendar/event-picker";
+import { CoachRecommendationCard } from "@/components/coaches/coach-recommendation-card";
 
 interface NetworkConnection {
   id: string;
@@ -186,6 +189,23 @@ interface ProcessSupporter {
   linkedin_url: string | null;
 }
 
+interface CoachRecommendation {
+  coach_id: string;
+  match_score: number;
+  headline: string;
+  reasons: string[];
+  value_proposition: string;
+  coach: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    specialties: string[];
+    hourly_rate: number;
+    rating: number | null;
+    bio: string | null;
+  };
+}
+
 const STEP_TYPE_OPTIONS = [
   { value: "phone_screen", label: "Phone Screen", icon: Phone },
   { value: "technical", label: "Technical", icon: Code },
@@ -282,6 +302,13 @@ export default function ProcessDetailPage() {
   const [editingSupporter, setEditingSupporter] = useState<ProcessSupporter | null>(null);
   const [supporterNotes, setSupporterNotes] = useState("");
 
+  // Coach recommendations state
+  const [processCoachRecommendations, setProcessCoachRecommendations] = useState<CoachRecommendation[]>([]);
+  const [stepCoachRecommendations, setStepCoachRecommendations] = useState<Record<string, CoachRecommendation[]>>({});
+  const [isLoadingProcessCoaches, setIsLoadingProcessCoaches] = useState(false);
+  const [isLoadingStepCoaches, setIsLoadingStepCoaches] = useState<string | null>(null);
+  const [coachRecommendationsExpanded, setCoachRecommendationsExpanded] = useState(false);
+
   const [stepFormData, setStepFormData] = useState({
     step_type: "phone_screen" as ProcessStep["step_type"],
     scheduled_date: "",
@@ -370,6 +397,49 @@ export default function ProcessDetailPage() {
         linkedin_url: (s.network_connection as any)?.linkedin_url || null,
       }));
       setSupporters(mappedSupporters);
+    }
+  };
+
+  const fetchProcessCoachRecommendations = async () => {
+    setIsLoadingProcessCoaches(true);
+    try {
+      const response = await fetch("/api/coaches/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ processId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProcessCoachRecommendations(data.recommendations || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch coach recommendations:", error);
+    } finally {
+      setIsLoadingProcessCoaches(false);
+    }
+  };
+
+  const fetchStepCoachRecommendations = async (stepId: string) => {
+    setIsLoadingStepCoaches(stepId);
+    try {
+      const response = await fetch("/api/coaches/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ processId, stepId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStepCoachRecommendations(prev => ({
+          ...prev,
+          [stepId]: data.recommendations || [],
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch step coach recommendations:", error);
+    } finally {
+      setIsLoadingStepCoaches(null);
     }
   };
 
@@ -1205,6 +1275,92 @@ export default function ProcessDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Coach Recommendations Section */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-indigo-500" />
+              <span className="text-sm font-semibold text-slate-900">Get Expert Help</span>
+              {processCoachRecommendations.length > 0 && (
+                <Badge variant="secondary" className="text-xs bg-indigo-50 text-indigo-700">
+                  {processCoachRecommendations.length} match{processCoachRecommendations.length !== 1 ? 'es' : ''}
+                </Badge>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 text-xs"
+              onClick={() => {
+                if (processCoachRecommendations.length === 0) {
+                  fetchProcessCoachRecommendations();
+                } else {
+                  setCoachRecommendationsExpanded(!coachRecommendationsExpanded);
+                }
+              }}
+              disabled={isLoadingProcessCoaches}
+            >
+              {isLoadingProcessCoaches ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Finding coaches...
+                </>
+              ) : processCoachRecommendations.length === 0 ? (
+                <>
+                  <Sparkles className="h-3 w-3" />
+                  Find Coaches
+                </>
+              ) : coachRecommendationsExpanded ? (
+                <>
+                  <ChevronUp className="h-3 w-3" />
+                  Hide
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-3 w-3" />
+                  Show
+                </>
+              )}
+            </Button>
+          </div>
+
+          {processCoachRecommendations.length === 0 && !isLoadingProcessCoaches && (
+            <p className="text-xs text-slate-400 italic">
+              Get matched with coaches who have relevant experience at {process.company_name} or similar companies
+            </p>
+          )}
+
+          {coachRecommendationsExpanded && processCoachRecommendations.length > 0 && (
+            <div className="space-y-3 mt-3">
+              <p className="text-xs text-slate-500">
+                AI-matched coaches based on your target role and company
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {processCoachRecommendations.map((rec) => (
+                  <CoachRecommendationCard
+                    key={rec.coach_id}
+                    recommendation={rec}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-slate-500 gap-1"
+                  onClick={fetchProcessCoachRecommendations}
+                  disabled={isLoadingProcessCoaches}
+                >
+                  <RefreshCw className={`h-3 w-3 ${isLoadingProcessCoaches ? 'animate-spin' : ''}`} />
+                  Refresh recommendations
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Steps Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -1758,7 +1914,72 @@ export default function ProcessDetailPage() {
                               )}
                             </div>
 
-                            {/* Section 4: Preparation Notes */}
+                            {/* Section 4: Get Expert Help for this Step */}
+                            <div className="p-4 bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-lg">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <GraduationCap className="h-4 w-4 text-indigo-600" />
+                                  <span className="text-sm font-semibold text-indigo-900">Get Expert Help</span>
+                                  {stepCoachRecommendations[step.id]?.length > 0 && (
+                                    <Badge variant="secondary" className="text-[10px] bg-indigo-100 text-indigo-700">
+                                      {stepCoachRecommendations[step.id].length} coach{stepCoachRecommendations[step.id].length !== 1 ? 'es' : ''}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => fetchStepCoachRecommendations(step.id)}
+                                  disabled={isLoadingStepCoaches === step.id}
+                                  className="gap-1.5 text-xs h-7 bg-white hover:bg-indigo-50 border-indigo-200"
+                                >
+                                  {isLoadingStepCoaches === step.id ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      Finding...
+                                    </>
+                                  ) : stepCoachRecommendations[step.id]?.length > 0 ? (
+                                    <>
+                                      <RefreshCw className="h-3 w-3" />
+                                      Refresh
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="h-3 w-3" />
+                                      Find Coaches
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                              {stepCoachRecommendations[step.id]?.length > 0 ? (
+                                <div className="space-y-3">
+                                  <p className="text-xs text-indigo-600">
+                                    Coaches matched for {STEP_TYPE_OPTIONS.find(o => o.value === step.step_type)?.label || 'this interview'}
+                                  </p>
+                                  <div className="grid grid-cols-1 gap-3">
+                                    {stepCoachRecommendations[step.id].slice(0, 2).map((rec) => (
+                                      <CoachRecommendationCard
+                                        key={rec.coach_id}
+                                        recommendation={rec}
+                                        stepId={step.id}
+                                        compact
+                                      />
+                                    ))}
+                                  </div>
+                                  {stepCoachRecommendations[step.id].length > 2 && (
+                                    <p className="text-xs text-indigo-500 text-center">
+                                      +{stepCoachRecommendations[step.id].length - 2} more coaches available
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-indigo-600 italic">
+                                  Find coaches with {STEP_TYPE_OPTIONS.find(o => o.value === step.step_type)?.label.toLowerCase() || 'interview'} expertise to help you prepare.
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Section 5: Preparation Notes */}
                             <div className="p-4 border rounded-lg bg-white">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
