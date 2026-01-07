@@ -10,9 +10,21 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Linkedin, Bell, Loader2, CheckCircle2, ExternalLink, Briefcase, ArrowRight, Calendar } from "lucide-react";
+import { User, Linkedin, Bell, Loader2, CheckCircle2, ExternalLink, Briefcase, ArrowRight, Calendar, GraduationCap, DollarSign } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import Link from "next/link";
+
+interface CoachProfile {
+  id: string;
+  specialties: string[];
+  hourly_rate: number;
+  bio: string | null;
+  availability_status: 'available' | 'busy' | 'unavailable';
+  stripe_onboarding_complete: boolean;
+  rating: number | null;
+}
 
 interface LinkedInData {
   linkedin_id: string;
@@ -33,6 +45,14 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isDisconnectingCalendar, setIsDisconnectingCalendar] = useState(false);
+  const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null);
+  const [isSavingCoach, setIsSavingCoach] = useState(false);
+  const [coachFormData, setCoachFormData] = useState({
+    specialties: "",
+    hourly_rate: "",
+    bio: "",
+    availability_status: "available" as CoachProfile["availability_status"],
+  });
   const [user, setUser] = useState<{
     id: string;
     email: string;
@@ -44,11 +64,12 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchUser();
+    fetchCoachProfile();
     checkCalendarConnection();
 
     // Handle tab from URL
     const tabParam = searchParams.get("tab");
-    if (tabParam && ["profile", "integrations", "notifications"].includes(tabParam)) {
+    if (tabParam && ["profile", "integrations", "notifications", "coach"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
 
@@ -107,6 +128,58 @@ export default function SettingsPage() {
       });
     }
     setIsLoading(false);
+  };
+
+  const fetchCoachProfile = async () => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+
+    const { data } = await supabase
+      .from("coaches")
+      .select("id, specialties, hourly_rate, bio, availability_status, stripe_onboarding_complete, rating")
+      .eq("user_id", authUser.id)
+      .single();
+
+    if (data) {
+      setCoachProfile(data as CoachProfile);
+      setCoachFormData({
+        specialties: data.specialties?.join(", ") || "",
+        hourly_rate: data.hourly_rate?.toString() || "",
+        bio: data.bio || "",
+        availability_status: data.availability_status || "available",
+      });
+    }
+  };
+
+  const handleSaveCoachProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!coachProfile) return;
+
+    setIsSavingCoach(true);
+
+    const specialtiesArray = coachFormData.specialties
+      .split(",")
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    const { error } = await supabase
+      .from("coaches")
+      .update({
+        specialties: specialtiesArray,
+        hourly_rate: parseFloat(coachFormData.hourly_rate) || 0,
+        bio: coachFormData.bio || null,
+        availability_status: coachFormData.availability_status,
+      })
+      .eq("id", coachProfile.id);
+
+    if (error) {
+      toast.error("Failed to update coach profile");
+    } else {
+      toast.success("Coach profile updated successfully");
+      fetchCoachProfile();
+    }
+
+    setIsSavingCoach(false);
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -220,6 +293,12 @@ export default function SettingsPage() {
             <Bell className="h-4 w-4" />
             Alerts
           </TabsTrigger>
+          {coachProfile && (
+            <TabsTrigger value="coach" className="gap-1 sm:gap-2 flex-1 sm:flex-none text-xs sm:text-sm">
+              <GraduationCap className="h-4 w-4" />
+              Coach
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile" className="mt-6 space-y-6">
@@ -520,6 +599,195 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {coachProfile && (
+          <TabsContent value="coach" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Coach Profile</CardTitle>
+                    <CardDescription>
+                      Manage your coaching profile and availability
+                    </CardDescription>
+                  </div>
+                  <Badge
+                    className={
+                      coachFormData.availability_status === "available"
+                        ? "bg-green-100 text-green-700"
+                        : coachFormData.availability_status === "busy"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-slate-100 text-slate-700"
+                    }
+                  >
+                    {coachFormData.availability_status === "available"
+                      ? "Available"
+                      : coachFormData.availability_status === "busy"
+                      ? "Busy"
+                      : "Unavailable"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveCoachProfile} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="availability">Availability Status</Label>
+                    <Select
+                      value={coachFormData.availability_status}
+                      onValueChange={(value: CoachProfile["availability_status"]) =>
+                        setCoachFormData({ ...coachFormData, availability_status: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="available">
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-green-500" />
+                            Available - Accepting new bookings
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="busy">
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                            Busy - Limited availability
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="unavailable">
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-slate-400" />
+                            Unavailable - Not accepting bookings
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">
+                      Only &quot;Available&quot; coaches appear in search results
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="specialties">Specialties</Label>
+                    <Input
+                      id="specialties"
+                      value={coachFormData.specialties}
+                      onChange={(e) =>
+                        setCoachFormData({ ...coachFormData, specialties: e.target.value })
+                      }
+                      placeholder="e.g., Technical Interviews, System Design, Behavioral"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Separate multiple specialties with commas
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="hourly_rate">Hourly Rate (USD)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="hourly_rate"
+                        type="number"
+                        min="0"
+                        step="5"
+                        value={coachFormData.hourly_rate}
+                        onChange={(e) =>
+                          setCoachFormData({ ...coachFormData, hourly_rate: e.target.value })
+                        }
+                        className="pl-9"
+                        placeholder="150"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Platform keeps 15%, you receive 85% of the session fee
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bio">Bio</Label>
+                    <Textarea
+                      id="bio"
+                      value={coachFormData.bio}
+                      onChange={(e) =>
+                        setCoachFormData({ ...coachFormData, bio: e.target.value })
+                      }
+                      placeholder="Tell potential clients about your experience, coaching style, and what makes you a great coach..."
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      {coachProfile.stripe_onboarding_complete ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <span>Stripe payments connected</span>
+                        </>
+                      ) : (
+                        <>
+                          <Badge variant="outline" className="text-yellow-700 border-yellow-300">
+                            Payment setup incomplete
+                          </Badge>
+                          <Link href="/become-coach" className="text-blue-600 hover:underline">
+                            Complete setup
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                    <Button type="submit" disabled={isSavingCoach}>
+                      {isSavingCoach && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save Changes
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Preview Card */}
+            <Card className="bg-slate-50">
+              <CardHeader>
+                <CardTitle className="text-base">Profile Preview</CardTitle>
+                <CardDescription>
+                  How your profile appears to potential clients
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-white rounded-lg border p-4">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={user?.avatar_url} />
+                      <AvatarFallback className="bg-blue-100 text-blue-700">
+                        {user?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase() || "C"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-slate-900">{user?.full_name || "Your Name"}</h3>
+                        {coachProfile.rating && (
+                          <span className="text-sm text-slate-500">★ {coachProfile.rating.toFixed(1)}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {coachFormData.specialties.split(",").filter(s => s.trim()).slice(0, 3).map((specialty, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {specialty.trim()}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-sm text-slate-600 mt-2 line-clamp-2">
+                        {coachFormData.bio || "Your bio will appear here..."}
+                      </p>
+                      <p className="text-sm font-medium text-slate-900 mt-2">
+                        ${coachFormData.hourly_rate || "0"}/hour
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
