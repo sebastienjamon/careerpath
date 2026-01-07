@@ -114,10 +114,19 @@ export async function GET(request: NextRequest) {
       connected_at: new Date().toISOString(),
     };
 
+    // First check if user already has a linkedin_profile_url set
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("linkedin_profile_url")
+      .eq("id", user.id)
+      .single();
+
     const { error: updateError } = await supabase
       .from("users")
       .update({
-        linkedin_profile_url: `https://www.linkedin.com/in/${userInfo.sub}`,
+        // Only set linkedin_profile_url if not already set (user can set manually)
+        // LinkedIn API doesn't provide the vanity URL, so we can't auto-fill it
+        ...(existingUser?.linkedin_profile_url ? {} : {}),
         linkedin_data: linkedinData,
         // Optionally update avatar if not set
         ...(user.user_metadata?.avatar_url ? {} : { avatar_url: userInfo.picture }),
