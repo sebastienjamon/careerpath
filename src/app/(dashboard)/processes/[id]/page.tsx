@@ -60,6 +60,9 @@ import {
   UserPlus,
   GraduationCap,
   Loader2,
+  ClipboardCheck,
+  ThumbsUp,
+  Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -95,7 +98,7 @@ interface ProcessStep {
   id: string;
   process_id: string;
   step_number: number;
-  step_type: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other';
+  step_type: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other' | 'output';
   scheduled_date: string | null;
   status: 'upcoming' | 'completed' | 'cancelled';
   description: string | null;
@@ -107,6 +110,8 @@ interface ProcessStep {
   preparation_notes: string | null;
   google_calendar_event_id: string | null;
   google_calendar_event_summary: string | null;
+  went_well: string[];
+  to_improve: string[];
   created_at: string;
 }
 
@@ -214,6 +219,7 @@ const STEP_TYPE_OPTIONS = [
   { value: "onsite", label: "Onsite", icon: MapPin },
   { value: "offer", label: "Offer", icon: Gift },
   { value: "other", label: "Other", icon: MoreHorizontal },
+  { value: "output", label: "Output", icon: ClipboardCheck },
 ];
 
 const STEP_STATUS_OPTIONS = [
@@ -319,6 +325,8 @@ export default function ProcessDetailPage() {
     notes: "",
     outcome: "",
     meeting_url: "",
+    went_well: [] as string[],
+    to_improve: [] as string[],
   });
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState<string | null>(null);
   const [expandedRecommendations, setExpandedRecommendations] = useState<Record<string, boolean>>({});
@@ -335,6 +343,139 @@ export default function ProcessDetailPage() {
   });
   const [contactAvatarErrors, setContactAvatarErrors] = useState<Record<string, boolean>>({});
   const [formAvatarError, setFormAvatarError] = useState(false);
+
+  // Output Step Content Component
+  const OutputStepContent = ({
+    step,
+    onUpdate
+  }: {
+    step: ProcessStep;
+    onUpdate: (field: 'went_well' | 'to_improve', values: string[]) => void;
+  }) => {
+    const [newWentWell, setNewWentWell] = useState("");
+    const [newToImprove, setNewToImprove] = useState("");
+
+    const handleAddItem = (field: 'went_well' | 'to_improve', value: string) => {
+      if (!value.trim()) return;
+      const currentValues = field === 'went_well' ? (step.went_well || []) : (step.to_improve || []);
+      onUpdate(field, [...currentValues, value.trim()]);
+      if (field === 'went_well') setNewWentWell("");
+      else setNewToImprove("");
+    };
+
+    const handleRemoveItem = (field: 'went_well' | 'to_improve', index: number) => {
+      const currentValues = field === 'went_well' ? (step.went_well || []) : (step.to_improve || []);
+      onUpdate(field, currentValues.filter((_, i) => i !== index));
+    };
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* What Went Well Column */}
+        <div className="p-4 bg-green-50 border border-green-100 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <ThumbsUp className="h-4 w-4 text-green-600" />
+            <span className="text-sm font-semibold text-green-900">What Went Well</span>
+          </div>
+
+          {/* Bullet Points */}
+          <ul className="space-y-2 mb-3">
+            {(step.went_well || []).map((item, index) => (
+              <li key={index} className="flex items-start gap-2 group">
+                <span className="text-green-500 mt-0.5">•</span>
+                <span className="text-sm text-green-800 flex-1">{item}</span>
+                <button
+                  onClick={() => handleRemoveItem('went_well', index)}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-green-100 rounded transition-opacity"
+                >
+                  <X className="h-3 w-3 text-green-600" />
+                </button>
+              </li>
+            ))}
+            {(step.went_well || []).length === 0 && (
+              <li className="text-sm text-green-600 italic">No items yet</li>
+            )}
+          </ul>
+
+          {/* Add New Item */}
+          <div className="flex gap-2">
+            <Input
+              value={newWentWell}
+              onChange={(e) => setNewWentWell(e.target.value)}
+              placeholder="Add a point..."
+              className="text-sm bg-white border-green-200 focus:border-green-400 focus:ring-green-400"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddItem('went_well', newWentWell);
+                }
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => handleAddItem('went_well', newWentWell)}
+              className="border-green-200 hover:bg-green-100 hover:text-green-700"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* What Could Be Improved Column */}
+        <div className="p-4 bg-amber-50 border border-amber-100 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <Lightbulb className="h-4 w-4 text-amber-600" />
+            <span className="text-sm font-semibold text-amber-900">What Could Be Improved</span>
+          </div>
+
+          {/* Bullet Points */}
+          <ul className="space-y-2 mb-3">
+            {(step.to_improve || []).map((item, index) => (
+              <li key={index} className="flex items-start gap-2 group">
+                <span className="text-amber-500 mt-0.5">•</span>
+                <span className="text-sm text-amber-800 flex-1">{item}</span>
+                <button
+                  onClick={() => handleRemoveItem('to_improve', index)}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-amber-100 rounded transition-opacity"
+                >
+                  <X className="h-3 w-3 text-amber-600" />
+                </button>
+              </li>
+            ))}
+            {(step.to_improve || []).length === 0 && (
+              <li className="text-sm text-amber-600 italic">No items yet</li>
+            )}
+          </ul>
+
+          {/* Add New Item */}
+          <div className="flex gap-2">
+            <Input
+              value={newToImprove}
+              onChange={(e) => setNewToImprove(e.target.value)}
+              placeholder="Add a point..."
+              className="text-sm bg-white border-amber-200 focus:border-amber-400 focus:ring-amber-400"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddItem('to_improve', newToImprove);
+                }
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => handleAddItem('to_improve', newToImprove)}
+              className="border-amber-200 hover:bg-amber-100 hover:text-amber-700"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     fetchProcess();
@@ -641,6 +782,8 @@ export default function ProcessDetailPage() {
       notes: stepFormData.notes || null,
       outcome: stepFormData.outcome || null,
       meeting_url: stepFormData.meeting_url || null,
+      went_well: stepFormData.went_well || [],
+      to_improve: stepFormData.to_improve || [],
     };
 
     if (editingStep) {
@@ -798,6 +941,8 @@ export default function ProcessDetailPage() {
       notes: step.notes || "",
       outcome: step.outcome || "",
       meeting_url: step.meeting_url || "",
+      went_well: step.went_well || [],
+      to_improve: step.to_improve || [],
     });
     setIsStepDialogOpen(true);
   };
@@ -932,6 +1077,8 @@ export default function ProcessDetailPage() {
       notes: "",
       outcome: "",
       meeting_url: "",
+      went_well: [],
+      to_improve: [],
     });
     setEditingStep(null);
   };
@@ -1071,6 +1218,27 @@ export default function ProcessDetailPage() {
     // Update local state
     setSteps(prev => prev.map(s =>
       s.id === stepId ? { ...s, preparation_notes: notes || null } : s
+    ));
+  };
+
+  const handleUpdateOutputStep = async (
+    stepId: string,
+    field: 'went_well' | 'to_improve',
+    values: string[]
+  ) => {
+    const { error } = await supabase
+      .from("process_steps")
+      .update({ [field]: values })
+      .eq("id", stepId);
+
+    if (error) {
+      toast.error("Failed to update");
+      return;
+    }
+
+    // Update local state
+    setSteps(prev => prev.map(s =>
+      s.id === stepId ? { ...s, [field]: values } : s
     ));
   };
 
@@ -1390,6 +1558,29 @@ export default function ProcessDetailPage() {
               <Calendar className="h-4 w-4" />
               Import from Calendar
             </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                setStepFormData({
+                  ...stepFormData,
+                  step_type: "output",
+                  status: "completed",
+                  scheduled_date: new Date().toISOString().split('T')[0],
+                  scheduled_time: "",
+                  description: "",
+                  notes: "",
+                  outcome: "",
+                  meeting_url: "",
+                  went_well: [],
+                  to_improve: [],
+                });
+                setIsStepDialogOpen(true);
+              }}
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              Add Output
+            </Button>
             <Dialog open={isStepDialogOpen} onOpenChange={(open) => {
               setIsStepDialogOpen(open);
               if (!open) resetStepForm();
@@ -1476,32 +1667,45 @@ export default function ProcessDetailPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Meeting Link</Label>
-                  <div className="relative">
-                    <Video className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      value={stepFormData.meeting_url}
-                      onChange={(e) =>
-                        setStepFormData({ ...stepFormData, meeting_url: e.target.value })
-                      }
-                      placeholder="https://zoom.us/j/... or https://meet.google.com/..."
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
+                {stepFormData.step_type !== 'output' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Meeting Link</Label>
+                      <div className="relative">
+                        <Video className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          value={stepFormData.meeting_url}
+                          onChange={(e) =>
+                            setStepFormData({ ...stepFormData, meeting_url: e.target.value })
+                          }
+                          placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label>Interview Purpose</Label>
-                  <Textarea
-                    value={stepFormData.description}
-                    onChange={(e) =>
-                      setStepFormData({ ...stepFormData, description: e.target.value })
-                    }
-                    placeholder="e.g., This interview will offer valuable insights into the role and team, and provide you with opportunities to ask questions."
-                    rows={2}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label>Interview Purpose</Label>
+                      <Textarea
+                        value={stepFormData.description}
+                        onChange={(e) =>
+                          setStepFormData({ ...stepFormData, description: e.target.value })
+                        }
+                        placeholder="e.g., This interview will offer valuable insights into the role and team, and provide you with opportunities to ask questions."
+                        rows={2}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {stepFormData.step_type === 'output' && (
+                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      <Lightbulb className="h-4 w-4 inline mr-1" />
+                      After creating this output step, you can add your reflections using the two-column layout for &quot;What Went Well&quot; and &quot;What Could Be Improved&quot;.
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Notes</Label>
@@ -1585,7 +1789,9 @@ export default function ProcessDetailPage() {
                   <div key={step.id} className="relative pl-10 sm:pl-14">
                     {/* Timeline dot */}
                     <div className={`absolute left-1 sm:left-3 w-6 h-6 rounded-full flex items-center justify-center ${
-                      step.status === "completed"
+                      step.step_type === "output"
+                        ? "bg-amber-100 text-amber-600"
+                        : step.status === "completed"
                         ? "bg-green-100 text-green-600"
                         : step.status === "cancelled"
                         ? "bg-red-100 text-red-600"
@@ -1658,6 +1864,14 @@ export default function ProcessDetailPage() {
                             {expandedSteps[step.id] && (
                               <div className="mt-4 space-y-4">
 
+                            {/* Output Step Content - Two Column Layout */}
+                            {step.step_type === 'output' ? (
+                              <OutputStepContent
+                                step={step}
+                                onUpdate={(field, values) => handleUpdateOutputStep(step.id, field, values)}
+                              />
+                            ) : (
+                              <>
                             {/* Section 1: Contacts & Files (2 columns) */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {/* Contacts */}
@@ -2049,6 +2263,8 @@ export default function ProcessDetailPage() {
                                 />
                               )}
                             </div>
+                              </>
+                            )}
                               </div>
                             )}
                           </div>

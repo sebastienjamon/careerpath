@@ -128,12 +128,14 @@ export interface Database {
           id: string
           process_id: string
           step_number: number
-          step_type: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other'
+          step_type: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other' | 'output'
           scheduled_date: string | null
           status: 'upcoming' | 'completed' | 'cancelled'
           objectives: string[]
           notes: string | null
           outcome: string | null
+          went_well: string[]
+          to_improve: string[]
           created_at: string
           updated_at: string
         }
@@ -141,12 +143,14 @@ export interface Database {
           id?: string
           process_id: string
           step_number: number
-          step_type: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other'
+          step_type: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other' | 'output'
           scheduled_date?: string | null
           status?: 'upcoming' | 'completed' | 'cancelled'
           objectives?: string[]
           notes?: string | null
           outcome?: string | null
+          went_well?: string[]
+          to_improve?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -154,12 +158,14 @@ export interface Database {
           id?: string
           process_id?: string
           step_number?: number
-          step_type?: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other'
+          step_type?: 'phone_screen' | 'technical' | 'behavioral' | 'onsite' | 'offer' | 'other' | 'output'
           scheduled_date?: string | null
           status?: 'upcoming' | 'completed' | 'cancelled'
           objectives?: string[]
           notes?: string | null
           outcome?: string | null
+          went_well?: string[]
+          to_improve?: string[]
           created_at?: string
           updated_at?: string
         }
