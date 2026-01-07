@@ -2005,7 +2005,7 @@ export default function ProcessDetailPage() {
                                     type="button"
                                     onClick={() => setNotesPreviewMode(prev => ({ ...prev, [step.id]: false }))}
                                     className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                                      !notesPreviewMode[step.id]
+                                      notesPreviewMode[step.id] === false
                                         ? "bg-white text-slate-900 shadow-sm"
                                         : "text-slate-500 hover:text-slate-700"
                                     }`}
@@ -2017,7 +2017,7 @@ export default function ProcessDetailPage() {
                                     type="button"
                                     onClick={() => setNotesPreviewMode(prev => ({ ...prev, [step.id]: true }))}
                                     className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                                      notesPreviewMode[step.id]
+                                      notesPreviewMode[step.id] !== false
                                         ? "bg-white text-slate-900 shadow-sm"
                                         : "text-slate-500 hover:text-slate-700"
                                     }`}
@@ -2027,7 +2027,7 @@ export default function ProcessDetailPage() {
                                   </button>
                                 </div>
                               </div>
-                              {notesPreviewMode[step.id] ? (
+                              {notesPreviewMode[step.id] !== false ? (
                                 <div className="min-h-[100px] p-3 border rounded-md bg-slate-50 prose prose-sm prose-slate max-w-none">
                                   {step.preparation_notes ? (
                                     <ReactMarkdown>{step.preparation_notes}</ReactMarkdown>
