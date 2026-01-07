@@ -1707,30 +1707,34 @@ export default function ProcessDetailPage() {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea
-                    value={stepFormData.notes}
-                    onChange={(e) =>
-                      setStepFormData({ ...stepFormData, notes: e.target.value })
-                    }
-                    placeholder="Any notes about this interview step..."
-                    rows={2}
-                  />
-                </div>
+                {stepFormData.step_type !== 'output' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Notes</Label>
+                      <Textarea
+                        value={stepFormData.notes}
+                        onChange={(e) =>
+                          setStepFormData({ ...stepFormData, notes: e.target.value })
+                        }
+                        placeholder="Any notes about this interview step..."
+                        rows={2}
+                      />
+                    </div>
 
-                {(editingStep?.status === "completed" || stepFormData.status === "completed") && (
-                  <div className="space-y-2">
-                    <Label>Outcome</Label>
-                    <Textarea
-                      value={stepFormData.outcome}
-                      onChange={(e) =>
-                        setStepFormData({ ...stepFormData, outcome: e.target.value })
-                      }
-                      placeholder="How did it go?"
-                      rows={2}
-                    />
-                  </div>
+                    {(editingStep?.status === "completed" || stepFormData.status === "completed") && (
+                      <div className="space-y-2">
+                        <Label>Outcome</Label>
+                        <Textarea
+                          value={stepFormData.outcome}
+                          onChange={(e) =>
+                            setStepFormData({ ...stepFormData, outcome: e.target.value })
+                          }
+                          placeholder="How did it go?"
+                          rows={2}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div className="flex justify-end gap-2">
