@@ -1172,194 +1172,198 @@ export default function ProcessDetailPage() {
         </Card>
       )}
 
-      {/* Supporters Section */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Heart className="h-4 w-4 text-rose-500" />
-              <span className="text-sm font-semibold text-slate-900">My Supporters</span>
-              {supporters.length > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  {supporters.length}
-                </Badge>
-              )}
+      {/* Supporters & Coach Recommendations - Two Column Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Supporters Section */}
+        <Card>
+          <CardContent className="p-4 h-full">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Heart className="h-4 w-4 text-rose-500" />
+                <span className="text-sm font-semibold text-slate-900">My Supporters</span>
+                {supporters.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {supporters.length}
+                  </Badge>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => {
+                  resetSupporterDialog();
+                  setIsSupporterDialogOpen(true);
+                }}
+              >
+                <UserPlus className="h-4 w-4" />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              onClick={() => {
-                resetSupporterDialog();
-                setIsSupporterDialogOpen(true);
-              }}
-            >
-              <UserPlus className="h-4 w-4" />
-            </Button>
-          </div>
 
-          {supporters.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {supporters.map(supporter => (
-                <div
-                  key={supporter.id}
-                  className="group relative flex items-center gap-2 px-2 py-1.5 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  <div className="h-7 w-7 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
-                    <img
-                      src={supporter.avatar_url || `${DICEBEAR_BASE}?seed=${encodeURIComponent(supporter.name)}&${DICEBEAR_OPTIONS}`}
-                      alt={supporter.name}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-slate-900 truncate max-w-[100px]">
-                      {supporter.name}
-                    </p>
-                    {supporter.role && (
-                      <p className="text-[10px] text-slate-500 truncate max-w-[100px]">
-                        {supporter.role}
+            {supporters.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {supporters.map(supporter => (
+                  <div
+                    key={supporter.id}
+                    className="group relative flex items-center gap-2 px-2 py-1.5 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="h-7 w-7 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
+                      <img
+                        src={supporter.avatar_url || `${DICEBEAR_BASE}?seed=${encodeURIComponent(supporter.name)}&${DICEBEAR_OPTIONS}`}
+                        alt={supporter.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-900 truncate max-w-[80px]">
+                        {supporter.name}
                       </p>
+                      {supporter.role && (
+                        <p className="text-[10px] text-slate-500 truncate max-w-[80px]">
+                          {supporter.role}
+                        </p>
+                      )}
+                    </div>
+                    {supporter.linkedin_url && (
+                      <a
+                        href={supporter.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-400 hover:text-blue-600"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Linkedin className="h-3 w-3" />
+                      </a>
                     )}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => {
+                          setEditingSupporter(supporter);
+                          setSupporterNotes(supporter.notes || "");
+                          setIsSupporterDialogOpen(true);
+                        }}
+                        className="p-1 hover:bg-slate-200 rounded"
+                      >
+                        <Edit2 className="h-3 w-3 text-slate-500" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSupporter(supporter.id)}
+                        className="p-1 hover:bg-red-100 rounded"
+                      >
+                        <X className="h-3 w-3 text-red-500" />
+                      </button>
+                    </div>
                   </div>
-                  {supporter.linkedin_url && (
-                    <a
-                      href={supporter.linkedin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-slate-400 hover:text-blue-600"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Linkedin className="h-3 w-3" />
-                    </a>
-                  )}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => {
-                        setEditingSupporter(supporter);
-                        setSupporterNotes(supporter.notes || "");
-                        setIsSupporterDialogOpen(true);
-                      }}
-                      className="p-1 hover:bg-slate-200 rounded"
-                    >
-                      <Edit2 className="h-3 w-3 text-slate-500" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSupporter(supporter.id)}
-                      className="p-1 hover:bg-red-100 rounded"
-                    >
-                      <X className="h-3 w-3 text-red-500" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400 italic">
-              Add people from your network who are helping you with this opportunity
-            </p>
-          )}
-
-          {/* Show notes if any supporter has them */}
-          {supporters.some(s => s.notes) && (
-            <div className="mt-3 pt-3 border-t border-slate-100">
-              <div className="space-y-1">
-                {supporters.filter(s => s.notes).map(s => (
-                  <p key={s.id} className="text-xs text-slate-500">
-                    <span className="font-medium">{s.name}:</span> {s.notes}
-                  </p>
                 ))}
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Coach Recommendations Section */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-indigo-500" />
-              <span className="text-sm font-semibold text-slate-900">Get Expert Help</span>
-              {processCoachRecommendations.length > 0 && (
-                <Badge variant="secondary" className="text-xs bg-indigo-50 text-indigo-700">
-                  {processCoachRecommendations.length} match{processCoachRecommendations.length !== 1 ? 'es' : ''}
-                </Badge>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-xs"
-              onClick={() => {
-                if (processCoachRecommendations.length === 0) {
-                  fetchProcessCoachRecommendations();
-                } else {
-                  setCoachRecommendationsExpanded(!coachRecommendationsExpanded);
-                }
-              }}
-              disabled={isLoadingProcessCoaches}
-            >
-              {isLoadingProcessCoaches ? (
-                <>
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Finding coaches...
-                </>
-              ) : processCoachRecommendations.length === 0 ? (
-                <>
-                  <Sparkles className="h-3 w-3" />
-                  Find Coaches
-                </>
-              ) : coachRecommendationsExpanded ? (
-                <>
-                  <ChevronUp className="h-3 w-3" />
-                  Hide
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-3 w-3" />
-                  Show
-                </>
-              )}
-            </Button>
-          </div>
-
-          {processCoachRecommendations.length === 0 && !isLoadingProcessCoaches && (
-            <p className="text-xs text-slate-400 italic">
-              Get matched with coaches who have relevant experience at {process.company_name} or similar companies
-            </p>
-          )}
-
-          {coachRecommendationsExpanded && processCoachRecommendations.length > 0 && (
-            <div className="space-y-3 mt-3">
-              <p className="text-xs text-slate-500">
-                AI-matched coaches based on your target role and company
+            ) : (
+              <p className="text-xs text-slate-400 italic">
+                Add people from your network who are helping you
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {processCoachRecommendations.map((rec) => (
-                  <CoachRecommendationCard
-                    key={rec.coach_id}
-                    recommendation={rec}
-                  />
-                ))}
+            )}
+
+            {/* Show notes if any supporter has them */}
+            {supporters.some(s => s.notes) && (
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <div className="space-y-1">
+                  {supporters.filter(s => s.notes).map(s => (
+                    <p key={s.id} className="text-xs text-slate-500">
+                      <span className="font-medium">{s.name}:</span> {s.notes}
+                    </p>
+                  ))}
+                </div>
               </div>
-              <div className="flex justify-center pt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-slate-500 gap-1"
-                  onClick={fetchProcessCoachRecommendations}
-                  disabled={isLoadingProcessCoaches}
-                >
-                  <RefreshCw className={`h-3 w-3 ${isLoadingProcessCoaches ? 'animate-spin' : ''}`} />
-                  Refresh recommendations
-                </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Coach Recommendations Section */}
+        <Card>
+          <CardContent className="p-4 h-full">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-indigo-500" />
+                <span className="text-sm font-semibold text-slate-900">Get Expert Help</span>
+                {processCoachRecommendations.length > 0 && (
+                  <Badge variant="secondary" className="text-xs bg-indigo-50 text-indigo-700">
+                    {processCoachRecommendations.length} match{processCoachRecommendations.length !== 1 ? 'es' : ''}
+                  </Badge>
+                )}
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-xs"
+                onClick={() => {
+                  if (processCoachRecommendations.length === 0) {
+                    fetchProcessCoachRecommendations();
+                  } else {
+                    setCoachRecommendationsExpanded(!coachRecommendationsExpanded);
+                  }
+                }}
+                disabled={isLoadingProcessCoaches}
+              >
+                {isLoadingProcessCoaches ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Finding...
+                  </>
+                ) : processCoachRecommendations.length === 0 ? (
+                  <>
+                    <Sparkles className="h-3 w-3" />
+                    Find Coaches
+                  </>
+                ) : coachRecommendationsExpanded ? (
+                  <>
+                    <ChevronUp className="h-3 w-3" />
+                    Hide
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3 w-3" />
+                    Show
+                  </>
+                )}
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {processCoachRecommendations.length === 0 && !isLoadingProcessCoaches && (
+              <p className="text-xs text-slate-400 italic">
+                Get matched with coaches experienced at {process.company_name}
+              </p>
+            )}
+
+            {coachRecommendationsExpanded && processCoachRecommendations.length > 0 && (
+              <div className="space-y-3 mt-3">
+                <p className="text-xs text-slate-500">
+                  AI-matched coaches for your target role
+                </p>
+                <div className="space-y-2">
+                  {processCoachRecommendations.map((rec) => (
+                    <CoachRecommendationCard
+                      key={rec.coach_id}
+                      recommendation={rec}
+                      compact
+                    />
+                  ))}
+                </div>
+                <div className="flex justify-center pt-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-slate-500 gap-1 h-6"
+                    onClick={fetchProcessCoachRecommendations}
+                    disabled={isLoadingProcessCoaches}
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isLoadingProcessCoaches ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Steps Section */}
       <div>
