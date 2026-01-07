@@ -811,7 +811,7 @@ export default function HighlightsPage() {
 
                 {/* Result Preview with Highlighter */}
                 <p className="text-xs text-slate-600 line-clamp-3 flex-1">
-                  <span className="bg-lime-200 px-1 py-0.5 rounded font-semibold text-slate-800">Result:</span>{" "}
+                  <span className="bg-emerald-200 px-1 py-0.5 rounded font-semibold text-emerald-900">Result:</span>{" "}
                   {highlight.result}
                 </p>
 

@@ -179,13 +179,13 @@ export default async function HighlightDetailPage({ params }: PageProps) {
         </Card>
 
         {/* Result */}
-        <Card className="border-lime-200 bg-lime-50/30">
+        <Card className="border-emerald-200 bg-emerald-50/30">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-lime-200 flex items-center justify-center text-lime-800 font-bold">
+              <span className="w-8 h-8 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-800 font-bold">
                 R
               </span>
-              <span className="bg-lime-200 px-2 py-0.5 rounded text-lime-800">Result</span>
+              <span className="bg-emerald-200 px-2 py-0.5 rounded text-emerald-800">Result</span>
             </h2>
             <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
               {highlight.result}
