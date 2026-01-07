@@ -136,6 +136,7 @@ export interface Database {
           outcome: string | null
           went_well: string[]
           to_improve: string[]
+          linked_step_id: string | null
           created_at: string
           updated_at: string
         }
@@ -151,6 +152,7 @@ export interface Database {
           outcome?: string | null
           went_well?: string[]
           to_improve?: string[]
+          linked_step_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -166,6 +168,7 @@ export interface Database {
           outcome?: string | null
           went_well?: string[]
           to_improve?: string[]
+          linked_step_id?: string | null
           created_at?: string
           updated_at?: string
         }

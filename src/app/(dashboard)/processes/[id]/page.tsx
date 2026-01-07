@@ -112,6 +112,7 @@ interface ProcessStep {
   google_calendar_event_summary: string | null;
   went_well: string[];
   to_improve: string[];
+  linked_step_id: string | null;
   created_at: string;
 }
 
@@ -327,6 +328,7 @@ export default function ProcessDetailPage() {
     meeting_url: "",
     went_well: [] as string[],
     to_improve: [] as string[],
+    linked_step_id: "" as string,
   });
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState<string | null>(null);
   const [expandedRecommendations, setExpandedRecommendations] = useState<Record<string, boolean>>({});
@@ -347,13 +349,19 @@ export default function ProcessDetailPage() {
   // Output Step Content Component
   const OutputStepContent = ({
     step,
-    onUpdate
+    onUpdate,
+    allSteps
   }: {
     step: ProcessStep;
     onUpdate: (field: 'went_well' | 'to_improve', values: string[]) => void;
+    allSteps: ProcessStep[];
   }) => {
     const [newWentWell, setNewWentWell] = useState("");
     const [newToImprove, setNewToImprove] = useState("");
+
+    const linkedStep = step.linked_step_id
+      ? allSteps.find(s => s.id === step.linked_step_id)
+      : null;
 
     const handleAddItem = (field: 'went_well' | 'to_improve', value: string) => {
       if (!value.trim()) return;
@@ -369,7 +377,18 @@ export default function ProcessDetailPage() {
     };
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-4">
+        {/* Linked Step Reference */}
+        {linkedStep && (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-slate-500" />
+            <span className="text-sm text-slate-600">
+              Reflecting on <span className="font-medium text-slate-900">Step {linkedStep.step_number}: {linkedStep.description || STEP_TYPE_OPTIONS.find(o => o.value === linkedStep.step_type)?.label}</span>
+            </span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* What Went Well Column */}
         <div className="p-4 bg-green-50 border border-green-100 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
@@ -472,6 +491,7 @@ export default function ProcessDetailPage() {
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+        </div>
         </div>
       </div>
     );
@@ -784,6 +804,7 @@ export default function ProcessDetailPage() {
       meeting_url: stepFormData.meeting_url || null,
       went_well: stepFormData.went_well || [],
       to_improve: stepFormData.to_improve || [],
+      linked_step_id: stepFormData.linked_step_id || null,
     };
 
     if (editingStep) {
@@ -943,6 +964,7 @@ export default function ProcessDetailPage() {
       meeting_url: step.meeting_url || "",
       went_well: step.went_well || [],
       to_improve: step.to_improve || [],
+      linked_step_id: step.linked_step_id || "",
     });
     setIsStepDialogOpen(true);
   };
@@ -1079,6 +1101,7 @@ export default function ProcessDetailPage() {
       meeting_url: "",
       went_well: [],
       to_improve: [],
+      linked_step_id: "",
     });
     setEditingStep(null);
   };
@@ -1574,6 +1597,7 @@ export default function ProcessDetailPage() {
                   meeting_url: "",
                   went_well: [],
                   to_improve: [],
+                  linked_step_id: "",
                 });
                 setIsStepDialogOpen(true);
               }}
@@ -1699,12 +1723,39 @@ export default function ProcessDetailPage() {
                 )}
 
                 {stepFormData.step_type === 'output' && (
-                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
-                    <p className="text-sm text-amber-800">
-                      <Lightbulb className="h-4 w-4 inline mr-1" />
-                      After creating this output step, you can add your reflections using the two-column layout for &quot;What Went Well&quot; and &quot;What Could Be Improved&quot;.
-                    </p>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label>Reflecting on Step</Label>
+                      <Select
+                        value={stepFormData.linked_step_id}
+                        onValueChange={(value) =>
+                          setStepFormData({ ...stepFormData, linked_step_id: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select the step you're reflecting on..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {steps
+                            .filter(s => s.step_type !== 'output' && s.id !== editingStep?.id)
+                            .map((s) => {
+                              const typeLabel = STEP_TYPE_OPTIONS.find(o => o.value === s.step_type)?.label || s.step_type;
+                              return (
+                                <SelectItem key={s.id} value={s.id}>
+                                  Step {s.step_number}: {s.description || typeLabel}
+                                </SelectItem>
+                              );
+                            })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                      <p className="text-sm text-amber-800">
+                        <Lightbulb className="h-4 w-4 inline mr-1" />
+                        After creating this output step, you can add your reflections using the two-column layout for &quot;What Went Well&quot; and &quot;What Could Be Improved&quot;.
+                      </p>
+                    </div>
+                  </>
                 )}
 
                 {stepFormData.step_type !== 'output' && (
@@ -1873,6 +1924,7 @@ export default function ProcessDetailPage() {
                               <OutputStepContent
                                 step={step}
                                 onUpdate={(field, values) => handleUpdateOutputStep(step.id, field, values)}
+                                allSteps={steps}
                               />
                             ) : (
                               <>
