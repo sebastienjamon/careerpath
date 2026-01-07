@@ -93,6 +93,7 @@ export interface Database {
           applied_date: string | null
           source: 'linkedin' | 'referral' | 'direct' | 'other'
           notes: string | null
+          hiring_manager_contact_id: string | null
           created_at: string
           updated_at: string
         }
@@ -106,6 +107,7 @@ export interface Database {
           applied_date?: string | null
           source?: 'linkedin' | 'referral' | 'direct' | 'other'
           notes?: string | null
+          hiring_manager_contact_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -119,6 +121,7 @@ export interface Database {
           applied_date?: string | null
           source?: 'linkedin' | 'referral' | 'direct' | 'other'
           notes?: string | null
+          hiring_manager_contact_id?: string | null
           created_at?: string
           updated_at?: string
         }

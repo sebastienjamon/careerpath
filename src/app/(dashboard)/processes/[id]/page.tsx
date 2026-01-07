@@ -90,6 +90,8 @@ interface RecruitmentProcess {
   source: 'linkedin' | 'referral' | 'direct' | 'other';
   referral_contact_id: string | null;
   referral_contact?: NetworkConnection | null;
+  hiring_manager_contact_id: string | null;
+  hiring_manager_contact?: NetworkConnection | null;
   notes: string | null;
   created_at: string;
 }
@@ -309,6 +311,7 @@ export default function ProcessDetailPage() {
   const [supporterSearchQuery, setSupporterSearchQuery] = useState("");
   const [editingSupporter, setEditingSupporter] = useState<ProcessSupporter | null>(null);
   const [supporterNotes, setSupporterNotes] = useState("");
+
 
   // Coach recommendations state
   const [processCoachRecommendations, setProcessCoachRecommendations] = useState<CoachRecommendation[]>([]);
@@ -699,6 +702,9 @@ export default function ProcessDetailPage() {
         *,
         referral_contact:network_connections!referral_contact_id (
           id, name, avatar_url, company, role
+        ),
+        hiring_manager_contact:network_connections!hiring_manager_contact_id (
+          id, name, avatar_url, company, role, linkedin_url
         )
       `)
       .eq("id", processId)
@@ -1360,6 +1366,27 @@ export default function ProcessDetailPage() {
                     className="h-4 w-4 rounded-full"
                   />
                   Referred by {process.referral_contact.name}
+                </span>
+              )}
+              {process.hiring_manager_contact && (
+                <span className="text-xs sm:text-sm text-slate-500 flex items-center gap-1.5">
+                  <img
+                    src={getNetworkAvatarUrl(process.hiring_manager_contact)}
+                    alt={process.hiring_manager_contact.name}
+                    className="h-4 w-4 rounded-full"
+                  />
+                  HM: {process.hiring_manager_contact.name}
+                  {process.hiring_manager_contact.linkedin_url && (
+                    <a
+                      href={process.hiring_manager_contact.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-400 hover:text-blue-600"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Linkedin className="h-3 w-3" />
+                    </a>
+                  )}
                 </span>
               )}
             </div>

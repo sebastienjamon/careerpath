@@ -54,6 +54,8 @@ interface RecruitmentProcess {
   source: 'linkedin' | 'referral' | 'direct' | 'other';
   referral_contact_id: string | null;
   referral_contact?: NetworkConnection | null;
+  hiring_manager_contact_id: string | null;
+  hiring_manager_contact?: NetworkConnection | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -151,6 +153,7 @@ export default function ProcessesPage() {
     status: "upcoming" as RecruitmentProcess["status"],
     source: "other" as RecruitmentProcess["source"],
     referral_contact_id: "",
+    hiring_manager_contact_id: "",
     applied_date: "",
     notes: "",
   });
@@ -211,6 +214,9 @@ export default function ProcessesPage() {
         *,
         referral_contact:network_connections!referral_contact_id (
           id, name, avatar_url, company, role
+        ),
+        hiring_manager_contact:network_connections!hiring_manager_contact_id (
+          id, name, avatar_url, company, role
         )
       `)
       .order("applied_date", { ascending: false, nullsFirst: false });
@@ -239,6 +245,7 @@ export default function ProcessesPage() {
       status: formData.status,
       source: formData.source,
       referral_contact_id: formData.source === "referral" && formData.referral_contact_id ? formData.referral_contact_id : null,
+      hiring_manager_contact_id: formData.hiring_manager_contact_id || null,
       applied_date: formData.applied_date || null,
       notes: formData.notes || null,
     };
@@ -279,6 +286,7 @@ export default function ProcessesPage() {
       status: process.status,
       source: process.source,
       referral_contact_id: process.referral_contact_id || "",
+      hiring_manager_contact_id: process.hiring_manager_contact_id || "",
       applied_date: process.applied_date || "",
       notes: process.notes || "",
     });
@@ -308,6 +316,7 @@ export default function ProcessesPage() {
       status: "upcoming",
       source: "other",
       referral_contact_id: "",
+      hiring_manager_contact_id: "",
       applied_date: "",
       notes: "",
     });
@@ -580,6 +589,51 @@ export default function ProcessesPage() {
                   )}
                 </div>
               )}
+
+              {/* Hiring Manager Selector */}
+              <div className="space-y-2">
+                <Label htmlFor="hiring_manager">Hiring Manager</Label>
+                {networkConnections.length > 0 ? (
+                  <Select
+                    value={formData.hiring_manager_contact_id}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, hiring_manager_contact_id: value === "none" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select hiring manager..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-slate-400">No hiring manager</span>
+                      </SelectItem>
+                      {networkConnections.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={getAvatarUrl(contact)}
+                              alt={contact.name}
+                              className="h-5 w-5 rounded-full"
+                            />
+                            <span>{contact.name}</span>
+                            {contact.role && (
+                              <span className="text-slate-400 text-xs">- {contact.role}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-slate-500 py-2">
+                    No network contacts yet. Add contacts in the{" "}
+                    <Link href="/network" className="text-blue-600 hover:underline">
+                      Network
+                    </Link>{" "}
+                    tab first.
+                  </p>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="applied_date">Applied Date</Label>
