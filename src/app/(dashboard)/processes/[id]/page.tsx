@@ -412,6 +412,10 @@ export default function ProcessDetailPage() {
       if (response.ok) {
         const data = await response.json();
         setProcessCoachRecommendations(data.recommendations || []);
+        // Auto-expand when recommendations are loaded
+        if (data.recommendations?.length > 0) {
+          setCoachRecommendationsExpanded(true);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch coach recommendations:", error);
