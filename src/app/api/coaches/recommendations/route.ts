@@ -213,14 +213,14 @@ Respond in this exact JSON format:
   ]
 }
 
-Only include coaches that are genuinely relevant (score > 60). If no coaches are a good match, return empty recommendations array.`;
+IMPORTANT: Always return the top 3 coaches ranked by relevance, even if the match isn't perfect. Users benefit from seeing options. Only return fewer than 3 if fewer coaches are available.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are an expert at matching career coaches to job candidates. Be specific and factual in your recommendations. Only recommend coaches who provide genuine value. Return valid JSON only.",
+          content: "You are an expert at matching career coaches to job candidates. Be specific and factual in your recommendations. Always provide recommendations - users want to see their options. Return valid JSON only.",
         },
         {
           role: "user",
