@@ -107,6 +107,13 @@ interface Attachment {
   created_at: string;
 }
 
+interface ProcessSupporter {
+  id: string;
+  process_id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
 const STATUS_OPTIONS = [
   { value: "upcoming", label: "Upcoming", color: "bg-blue-100 text-blue-700" },
   { value: "in_progress", label: "In Progress", color: "bg-yellow-100 text-yellow-700" },
@@ -134,6 +141,7 @@ export default function ProcessesPage() {
   const [attachments, setAttachments] = useState<Record<string, Attachment[]>>({});
   const [isUploading, setIsUploading] = useState(false);
   const [networkConnections, setNetworkConnections] = useState<NetworkConnection[]>([]);
+  const [processSupporters, setProcessSupporters] = useState<Record<string, ProcessSupporter[]>>({});
 
   const [formData, setFormData] = useState({
     company_name: "",
@@ -150,6 +158,7 @@ export default function ProcessesPage() {
   useEffect(() => {
     fetchProcesses();
     fetchNetworkConnections();
+    fetchAllSupporters();
   }, []);
 
   const fetchNetworkConnections = async () => {
@@ -163,6 +172,36 @@ export default function ProcessesPage() {
       .order("name", { ascending: true });
 
     setNetworkConnections(data || []);
+  };
+
+  const fetchAllSupporters = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("process_supporters")
+      .select(`
+        id,
+        process_id,
+        network_connection:network_connections!network_connection_id (
+          name,
+          avatar_url
+        )
+      `);
+
+    if (!error && data) {
+      const grouped: Record<string, ProcessSupporter[]> = {};
+      data.forEach(s => {
+        if (!grouped[s.process_id]) grouped[s.process_id] = [];
+        grouped[s.process_id].push({
+          id: s.id,
+          process_id: s.process_id,
+          name: (s.network_connection as any)?.name || '',
+          avatar_url: (s.network_connection as any)?.avatar_url || null,
+        });
+      });
+      setProcessSupporters(grouped);
+    }
   };
 
   const fetchProcesses = async () => {
@@ -679,6 +718,36 @@ export default function ProcessesPage() {
                       </Link>
 
                       <div className="flex items-center gap-3">
+                        {/* Supporters Avatars Stack */}
+                        {processSupporters[process.id]?.length > 0 && (
+                          <div className="flex items-center">
+                            <div className="flex -space-x-2">
+                              {processSupporters[process.id].slice(0, 3).map((supporter, idx) => (
+                                <div
+                                  key={supporter.id}
+                                  className="h-6 w-6 rounded-full border-2 border-white bg-slate-200 overflow-hidden"
+                                  style={{ zIndex: 3 - idx }}
+                                  title={supporter.name}
+                                >
+                                  <img
+                                    src={supporter.avatar_url || `${DICEBEAR_BASE}?seed=${encodeURIComponent(supporter.name)}&${DICEBEAR_OPTIONS}`}
+                                    alt={supporter.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                              {processSupporters[process.id].length > 3 && (
+                                <div
+                                  className="h-6 w-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-medium text-slate-600"
+                                  style={{ zIndex: 0 }}
+                                >
+                                  +{processSupporters[process.id].length - 3}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {getStatusBadge(process.status)}
 
                         <Button

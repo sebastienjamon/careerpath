@@ -56,6 +56,8 @@ import {
   Eye,
   Pencil,
   Link2,
+  Heart,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -172,6 +174,18 @@ interface StepContact {
   network_connection_id: string | null;
 }
 
+interface ProcessSupporter {
+  id: string;
+  process_id: string;
+  network_connection_id: string;
+  notes: string | null;
+  name: string;
+  role: string | null;
+  company: string | null;
+  avatar_url: string | null;
+  linkedin_url: string | null;
+}
+
 const STEP_TYPE_OPTIONS = [
   { value: "phone_screen", label: "Phone Screen", icon: Phone },
   { value: "technical", label: "Technical", icon: Code },
@@ -260,6 +274,14 @@ export default function ProcessDetailPage() {
   const [linkFormData, setLinkFormData] = useState({ url: "", name: "" });
   const [isUploading, setIsUploading] = useState(false);
 
+  // Supporters state
+  const [supporters, setSupporters] = useState<ProcessSupporter[]>([]);
+  const [isSupporterDialogOpen, setIsSupporterDialogOpen] = useState(false);
+  const [selectedSupporterIds, setSelectedSupporterIds] = useState<string[]>([]);
+  const [supporterSearchQuery, setSupporterSearchQuery] = useState("");
+  const [editingSupporter, setEditingSupporter] = useState<ProcessSupporter | null>(null);
+  const [supporterNotes, setSupporterNotes] = useState("");
+
   const [stepFormData, setStepFormData] = useState({
     step_type: "phone_screen" as ProcessStep["step_type"],
     scheduled_date: "",
@@ -290,6 +312,7 @@ export default function ProcessDetailPage() {
     fetchProcess();
     fetchSteps();
     fetchNetworkConnections();
+    fetchSupporters();
     checkCalendarConnection();
   }, [processId]);
 
@@ -314,6 +337,115 @@ export default function ProcessDetailPage() {
       .select("id")
       .single();
     setIsCalendarConnected(!!data);
+  };
+
+  const fetchSupporters = async () => {
+    const { data, error } = await supabase
+      .from("process_supporters")
+      .select(`
+        id,
+        process_id,
+        network_connection_id,
+        notes,
+        network_connection:network_connections!network_connection_id (
+          name,
+          role,
+          company,
+          avatar_url,
+          linkedin_url
+        )
+      `)
+      .eq("process_id", processId);
+
+    if (!error && data) {
+      const mappedSupporters = data.map(s => ({
+        id: s.id,
+        process_id: s.process_id,
+        network_connection_id: s.network_connection_id,
+        notes: s.notes,
+        name: (s.network_connection as any)?.name || '',
+        role: (s.network_connection as any)?.role || null,
+        company: (s.network_connection as any)?.company || null,
+        avatar_url: (s.network_connection as any)?.avatar_url || null,
+        linkedin_url: (s.network_connection as any)?.linkedin_url || null,
+      }));
+      setSupporters(mappedSupporters);
+    }
+  };
+
+  const handleAddSupporters = async () => {
+    if (selectedSupporterIds.length === 0) return;
+
+    const existingIds = new Set(supporters.map(s => s.network_connection_id));
+    const newSupporters = selectedSupporterIds
+      .filter(id => !existingIds.has(id))
+      .map(id => ({
+        process_id: processId,
+        network_connection_id: id,
+        notes: null,
+      }));
+
+    if (newSupporters.length === 0) {
+      toast.error("Selected contacts are already supporters");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("process_supporters")
+      .insert(newSupporters);
+
+    if (error) {
+      toast.error("Failed to add supporters");
+      return;
+    }
+
+    toast.success(`Added ${newSupporters.length} supporter${newSupporters.length > 1 ? 's' : ''}`);
+    setIsSupporterDialogOpen(false);
+    setSelectedSupporterIds([]);
+    setSupporterSearchQuery("");
+    fetchSupporters();
+  };
+
+  const handleUpdateSupporterNotes = async () => {
+    if (!editingSupporter) return;
+
+    const { error } = await supabase
+      .from("process_supporters")
+      .update({ notes: supporterNotes || null })
+      .eq("id", editingSupporter.id);
+
+    if (error) {
+      toast.error("Failed to update notes");
+      return;
+    }
+
+    toast.success("Notes updated");
+    setEditingSupporter(null);
+    setSupporterNotes("");
+    setIsSupporterDialogOpen(false);
+    fetchSupporters();
+  };
+
+  const handleDeleteSupporter = async (supporterId: string) => {
+    const { error } = await supabase
+      .from("process_supporters")
+      .delete()
+      .eq("id", supporterId);
+
+    if (error) {
+      toast.error("Failed to remove supporter");
+      return;
+    }
+
+    toast.success("Supporter removed");
+    fetchSupporters();
+  };
+
+  const resetSupporterDialog = () => {
+    setSelectedSupporterIds([]);
+    setSupporterSearchQuery("");
+    setEditingSupporter(null);
+    setSupporterNotes("");
   };
 
   const fetchProcess = async () => {
@@ -969,6 +1101,109 @@ export default function ProcessDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Supporters Section */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Heart className="h-4 w-4 text-rose-500" />
+              <span className="text-sm font-semibold text-slate-900">My Supporters</span>
+              {supporters.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {supporters.length}
+                </Badge>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => {
+                resetSupporterDialog();
+                setIsSupporterDialogOpen(true);
+              }}
+            >
+              <UserPlus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {supporters.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {supporters.map(supporter => (
+                <div
+                  key={supporter.id}
+                  className="group relative flex items-center gap-2 px-2 py-1.5 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  <div className="h-7 w-7 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
+                    <img
+                      src={supporter.avatar_url || `${DICEBEAR_BASE}?seed=${encodeURIComponent(supporter.name)}&${DICEBEAR_OPTIONS}`}
+                      alt={supporter.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-slate-900 truncate max-w-[100px]">
+                      {supporter.name}
+                    </p>
+                    {supporter.role && (
+                      <p className="text-[10px] text-slate-500 truncate max-w-[100px]">
+                        {supporter.role}
+                      </p>
+                    )}
+                  </div>
+                  {supporter.linkedin_url && (
+                    <a
+                      href={supporter.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-400 hover:text-blue-600"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Linkedin className="h-3 w-3" />
+                    </a>
+                  )}
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        setEditingSupporter(supporter);
+                        setSupporterNotes(supporter.notes || "");
+                        setIsSupporterDialogOpen(true);
+                      }}
+                      className="p-1 hover:bg-slate-200 rounded"
+                    >
+                      <Edit2 className="h-3 w-3 text-slate-500" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSupporter(supporter.id)}
+                      className="p-1 hover:bg-red-100 rounded"
+                    >
+                      <X className="h-3 w-3 text-red-500" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 italic">
+              Add people from your network who are helping you with this opportunity
+            </p>
+          )}
+
+          {/* Show notes if any supporter has them */}
+          {supporters.some(s => s.notes) && (
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <div className="space-y-1">
+                {supporters.filter(s => s.notes).map(s => (
+                  <p key={s.id} className="text-xs text-slate-500">
+                    <span className="font-medium">{s.name}:</span> {s.notes}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Steps Section */}
       <div>
@@ -1787,6 +2022,195 @@ export default function ProcessDetailPage() {
               )}
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Supporters Dialog */}
+      <Dialog open={isSupporterDialogOpen} onOpenChange={(open) => {
+        setIsSupporterDialogOpen(open);
+        if (!open) resetSupporterDialog();
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingSupporter ? "Edit Supporter Notes" : "Add Supporters"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingSupporter
+                ? "Update notes for how this person is helping you"
+                : "Select people from your network who are supporting you"
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingSupporter ? (
+            /* Edit mode - just notes */
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
+                  <img
+                    src={editingSupporter.avatar_url || `${DICEBEAR_BASE}?seed=${encodeURIComponent(editingSupporter.name)}&${DICEBEAR_OPTIONS}`}
+                    alt={editingSupporter.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{editingSupporter.name}</p>
+                  {editingSupporter.role && (
+                    <p className="text-sm text-slate-500 truncate">{editingSupporter.role}</p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>How are they helping?</Label>
+                <Textarea
+                  value={supporterNotes}
+                  onChange={(e) => setSupporterNotes(e.target.value)}
+                  placeholder="e.g., Internal referral, Mock interview practice, Industry insights..."
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsSupporterDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1"
+                  onClick={handleUpdateSupporterNotes}
+                >
+                  Update Notes
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* Add mode - contact selector */
+            <div className="space-y-4">
+              {networkConnections.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500 mb-4">No contacts in your network yet</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsSupporterDialogOpen(false);
+                      router.push("/network");
+                    }}
+                  >
+                    Go to Network
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {/* Search */}
+                  <div className="relative">
+                    <Input
+                      value={supporterSearchQuery}
+                      onChange={(e) => setSupporterSearchQuery(e.target.value)}
+                      placeholder="Search contacts..."
+                      className="pl-9"
+                    />
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  </div>
+
+                  {/* Contact List */}
+                  <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
+                    {networkConnections
+                      .filter(c =>
+                        c.name.toLowerCase().includes(supporterSearchQuery.toLowerCase()) ||
+                        (c.role && c.role.toLowerCase().includes(supporterSearchQuery.toLowerCase()))
+                      )
+                      .map(contact => {
+                        const isExisting = supporters.some(s => s.network_connection_id === contact.id);
+                        return (
+                          <button
+                            key={contact.id}
+                            type="button"
+                            disabled={isExisting}
+                            onClick={() => {
+                              setSelectedSupporterIds(prev =>
+                                prev.includes(contact.id)
+                                  ? prev.filter(id => id !== contact.id)
+                                  : [...prev, contact.id]
+                              );
+                            }}
+                            className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
+                              isExisting
+                                ? "bg-slate-50 opacity-50 cursor-not-allowed"
+                                : selectedSupporterIds.includes(contact.id)
+                                  ? "bg-rose-50 border-l-2 border-l-rose-500"
+                                  : "hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className={`h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                              isExisting
+                                ? "bg-slate-300 border-slate-300"
+                                : selectedSupporterIds.includes(contact.id)
+                                  ? "bg-rose-500 border-rose-500"
+                                  : "border-slate-300"
+                            }`}>
+                              {(selectedSupporterIds.includes(contact.id) || isExisting) && (
+                                <CheckCircle className="h-4 w-4 text-white" />
+                              )}
+                            </div>
+                            <div className="h-9 w-9 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
+                              <img
+                                src={contact.avatar_url || `${DICEBEAR_BASE}?seed=${encodeURIComponent(contact.name)}&${DICEBEAR_OPTIONS}`}
+                                alt={contact.name}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate text-sm">{contact.name}</p>
+                              {contact.role && (
+                                <p className="text-xs text-slate-500 truncate">{contact.role}</p>
+                              )}
+                            </div>
+                            {isExisting && (
+                              <span className="text-xs text-slate-400">Added</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    {networkConnections.filter(c =>
+                      c.name.toLowerCase().includes(supporterSearchQuery.toLowerCase()) ||
+                      (c.role && c.role.toLowerCase().includes(supporterSearchQuery.toLowerCase()))
+                    ).length === 0 && (
+                      <div className="p-4 text-center text-sm text-slate-500">
+                        No contacts found
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected count and add button */}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setIsSupporterDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      className="flex-1"
+                      disabled={selectedSupporterIds.length === 0}
+                      onClick={handleAddSupporters}
+                    >
+                      Add {selectedSupporterIds.length > 0 ? selectedSupporterIds.length : ''} Supporter{selectedSupporterIds.length !== 1 ? 's' : ''}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
