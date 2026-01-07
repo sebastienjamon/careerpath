@@ -36,6 +36,10 @@ import {
   Loader2,
   Sparkles,
   X,
+  Check,
+  Filter,
+  Lightbulb,
+  Wrench,
 } from "lucide-react";
 
 interface CareerExperience {
@@ -87,7 +91,8 @@ export default function HighlightsPage() {
   const [highlights, setHighlights] = useState<CareerHighlight[]>([]);
   const [experiences, setExperiences] = useState<CareerExperience[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [activeSkillFilters, setActiveSkillFilters] = useState<string[]>([]);
+  const [activeValueFilters, setActiveValueFilters] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingHighlight, setEditingHighlight] = useState<CareerHighlight | null>(null);
@@ -376,12 +381,39 @@ export default function HighlightsPage() {
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
   };
 
-  const filteredHighlights = activeFilter === "all"
-    ? highlights
-    : highlights.filter(h => h.tags?.includes(activeFilter));
-
   // Get unique tags from all highlights
-  const allTags = [...new Set(highlights.flatMap(h => h.tags || []))];
+  const allSkillTags = [...new Set(highlights.flatMap(h => h.tags || []))].sort();
+  const allValueTags = [...new Set(highlights.flatMap(h => h.reflection_tags || []))].sort();
+
+  // Filter highlights based on selected filters
+  // Within each column: OR (any selected tag matches)
+  // Between columns: AND (must match both skill AND value filters if both are set)
+  const filteredHighlights = highlights.filter(h => {
+    const matchesSkills = activeSkillFilters.length === 0 ||
+      activeSkillFilters.some(tag => h.tags?.includes(tag));
+    const matchesValues = activeValueFilters.length === 0 ||
+      activeValueFilters.some(tag => h.reflection_tags?.includes(tag));
+    return matchesSkills && matchesValues;
+  });
+
+  const toggleSkillFilter = (tag: string) => {
+    setActiveSkillFilters(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const toggleValueFilter = (tag: string) => {
+    setActiveValueFilters(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const clearAllFilters = () => {
+    setActiveSkillFilters([]);
+    setActiveValueFilters([]);
+  };
+
+  const hasActiveFilters = activeSkillFilters.length > 0 || activeValueFilters.length > 0;
 
   if (isLoading) {
     return (
@@ -711,27 +743,162 @@ export default function HighlightsPage() {
         </Dialog>
       </div>
 
-      {/* Filter Tabs */}
-      {allTags.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={activeFilter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveFilter("all")}
-          >
-            All ({highlights.length})
-          </Button>
-          {allTags.map((tag) => (
-            <Button
-              key={tag}
-              variant={activeFilter === tag ? "default" : "outline"}
-              size="sm"
-              onClick={() => setActiveFilter(tag)}
-            >
-              {tag} ({highlights.filter(h => h.tags?.includes(tag)).length})
-            </Button>
-          ))}
-        </div>
+      {/* Two-Column Filter Section */}
+      {(allSkillTags.length > 0 || allValueTags.length > 0) && (
+        <Card className="bg-slate-50/50">
+          <CardContent className="p-4">
+            {/* Filter Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Filter className="h-4 w-4" />
+                <span>Filter Highlights</span>
+                {hasActiveFilters && (
+                  <Badge variant="secondary" className="ml-1 bg-slate-200">
+                    {filteredHighlights.length} of {highlights.length}
+                  </Badge>
+                )}
+              </div>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="h-7 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  Clear all
+                  <X className="h-3 w-3 ml-1" />
+                </Button>
+              )}
+            </div>
+
+            {/* Two-Column Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Skills Column */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                  <Wrench className="h-3.5 w-3.5" />
+                  Skills
+                  {activeSkillFilters.length > 0 && (
+                    <button
+                      onClick={() => setActiveSkillFilters([])}
+                      className="ml-auto text-blue-500 hover:text-blue-700 normal-case font-normal"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {allSkillTags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {allSkillTags.map((tag) => {
+                      const isActive = activeSkillFilters.includes(tag);
+                      const count = highlights.filter(h => h.tags?.includes(tag)).length;
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => toggleSkillFilter(tag)}
+                          className={`
+                            inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                            transition-all duration-150 border
+                            ${isActive
+                              ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                              : "bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50"
+                            }
+                          `}
+                        >
+                          {isActive && <Check className="h-3 w-3" />}
+                          {tag}
+                          <span className={`ml-0.5 ${isActive ? "text-blue-200" : "text-slate-400"}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No skill tags yet</p>
+                )}
+              </div>
+
+              {/* Values Column */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 uppercase tracking-wide">
+                  <Lightbulb className="h-3.5 w-3.5" />
+                  Values
+                  {activeValueFilters.length > 0 && (
+                    <button
+                      onClick={() => setActiveValueFilters([])}
+                      className="ml-auto text-emerald-500 hover:text-emerald-700 normal-case font-normal"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {allValueTags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {allValueTags.map((tag) => {
+                      const isActive = activeValueFilters.includes(tag);
+                      const count = highlights.filter(h => h.reflection_tags?.includes(tag)).length;
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => toggleValueFilter(tag)}
+                          className={`
+                            inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                            transition-all duration-150 border
+                            ${isActive
+                              ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                              : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50"
+                            }
+                          `}
+                        >
+                          {isActive && <Check className="h-3 w-3" />}
+                          {tag}
+                          <span className={`ml-0.5 ${isActive ? "text-emerald-200" : "text-slate-400"}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No value tags yet</p>
+                )}
+              </div>
+            </div>
+
+            {/* Active Filters Summary */}
+            {hasActiveFilters && (
+              <div className="mt-4 pt-3 border-t border-slate-200">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                  <span className="font-medium">Showing:</span>
+                  {activeSkillFilters.length > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-blue-600">Skills:</span>
+                      {activeSkillFilters.map((tag, i) => (
+                        <span key={tag}>
+                          {tag}{i < activeSkillFilters.length - 1 ? " or " : ""}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  {activeSkillFilters.length > 0 && activeValueFilters.length > 0 && (
+                    <span className="text-slate-400">+</span>
+                  )}
+                  {activeValueFilters.length > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-emerald-600">Values:</span>
+                      {activeValueFilters.map((tag, i) => (
+                        <span key={tag}>
+                          {tag}{i < activeValueFilters.length - 1 ? " or " : ""}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Highlights Grid */}
@@ -857,7 +1024,7 @@ export default function HighlightsPage() {
                 {/* View Full STAR Link */}
                 <Link
                   href={`/highlights/${highlight.id}`}
-                  className="mt-3 pt-3 border-t flex items-center justify-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                  className="mt-3 pt-3 border-t flex items-center justify-center gap-1 text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors"
                 >
                   View Full STAR
                   <ArrowRight className="h-3 w-3" />
@@ -871,21 +1038,21 @@ export default function HighlightsPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Award className="h-12 w-12 text-slate-300 mb-4" />
             <h3 className="font-medium text-slate-900 mb-1">
-              {activeFilter === "all" ? "No highlights yet" : `No highlights tagged with "${activeFilter}"`}
+              {!hasActiveFilters ? "No highlights yet" : "No highlights match your filters"}
             </h3>
             <p className="text-sm text-slate-500 text-center mb-4">
-              {activeFilter === "all"
+              {!hasActiveFilters
                 ? "Record your career achievements to prepare for interviews"
-                : "Try selecting a different filter or add new highlights"}
+                : "Try adjusting your filter selection or add new highlights"}
             </p>
-            {activeFilter === "all" ? (
+            {!hasActiveFilters ? (
               <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Your First Highlight
               </Button>
             ) : (
-              <Button variant="outline" onClick={() => setActiveFilter("all")}>
-                Clear Filter
+              <Button variant="outline" onClick={clearAllFilters}>
+                Clear All Filters
               </Button>
             )}
           </CardContent>
