@@ -58,6 +58,14 @@ export async function POST(
       .select("*")
       .eq("step_id", stepId);
 
+    // Fetch user's career highlights for STAR story suggestions
+    const { data: highlights } = await supabase
+      .from("career_highlights")
+      .select("title, company_name, tags, reflection_tags, result")
+      .eq("user_id", user.id)
+      .order("achievement_date", { ascending: false })
+      .limit(10);
+
     // Build the context for the AI
     const stepTypeLabels: Record<string, string> = {
       phone_screen: "Phone Screen",
@@ -69,62 +77,86 @@ export async function POST(
     };
 
     const previousSteps = allSteps?.filter(s => s.step_number < step.step_number) || [];
-    const previousStepsContext = previousSteps.map(s =>
-      `- Step ${s.step_number} (${stepTypeLabels[s.step_type] || s.step_type}): ${s.status}${s.outcome ? ` - Outcome: ${s.outcome}` : ""}`
-    ).join("\n");
+    const previousStepsContext = previousSteps.map(s => {
+      let context = `- Step ${s.step_number} (${stepTypeLabels[s.step_type] || s.step_type}): ${s.status}`;
+      if (s.outcome) context += ` - Outcome: ${s.outcome}`;
+      if (s.notes) context += ` - Notes: ${s.notes}`;
+      return context;
+    }).join("\n");
 
     const contactsContext = contacts?.map(c =>
-      `- ${c.name}${c.role ? ` (${c.role})` : ""}`
-    ).join("\n") || "No contacts added yet";
+      `- ${c.name}${c.role ? ` (${c.role})` : ""}${c.linkedin_url ? ` - LinkedIn: ${c.linkedin_url}` : ""}`
+    ).join("\n") || "None added";
 
-    const prompt = `You are a career coach helping someone prepare for a job interview. Based on the following information about their recruitment process and upcoming interview step, provide specific, actionable recommendations on what they should prepare.
+    const highlightsContext = highlights?.map(h =>
+      `- "${h.title}" at ${h.company_name} | Skills: ${h.tags?.join(", ") || "none"} | Values: ${h.reflection_tags?.join(", ") || "none"} | Result: ${h.result?.substring(0, 100)}...`
+    ).join("\n") || "No career highlights recorded";
 
-## Company & Role
-- Company: ${process.company_name}
-- Position: ${process.job_title}
-${process.company_website ? `- Website: ${process.company_website}` : ""}
-${process.notes ? `- Additional notes: ${process.notes}` : ""}
+    const prompt = `You are a brutally honest interview coach. Your job is to identify GAPS and BLIND SPOTS in the user's preparation - what they've MISSED or haven't thought about.
 
-## Current Interview Step
-- Step ${step.step_number}: ${stepTypeLabels[step.step_type] || step.step_type}
-${step.scheduled_date ? `- Scheduled: ${new Date(step.scheduled_date).toLocaleString()}` : "- Not yet scheduled"}
-${step.description ? `- Purpose: ${step.description}` : ""}
-${step.notes ? `- Notes: ${step.notes}` : ""}
+## INTERVIEW CONTEXT
 
-## Interviewers
-${contactsContext}
+**Company:** ${process.company_name}
+**Position:** ${process.job_title}
+${process.company_website ? `**Website:** ${process.company_website}` : ""}
+${process.notes ? `**Process Notes:** ${process.notes}` : ""}
 
-## Previous Steps in This Process
+**This Interview Step:** ${stepTypeLabels[step.step_type] || step.step_type} (Step ${step.step_number})
+${step.scheduled_date ? `**When:** ${new Date(step.scheduled_date).toLocaleString()}` : "**When:** Not scheduled yet"}
+${step.description ? `**Description:** ${step.description}` : ""}
+${step.notes ? `**Step Notes:** ${step.notes}` : ""}
+
+**Interviewers:** ${contactsContext}
+
+**Previous Steps:**
 ${previousStepsContext || "This is the first step"}
-
-## User's Current Preparation Notes
-${step.preparation_notes || "No notes yet"}
 
 ---
 
-Please provide 4-6 specific, actionable recommendations for preparing for this interview. Consider:
-1. Research to do about the company, role, and interviewers
-2. Technical topics or skills to review (if applicable)
-3. Questions to prepare for the interviewers
-4. Stories or examples to have ready (STAR method)
-5. Logistics and presentation tips
+## USER'S CURRENT PREPARATION NOTES
 
-Be concise but specific. Format as a bulleted list with clear action items.`;
+${step.preparation_notes || "*EMPTY - User has written nothing*"}
+
+---
+
+## USER'S AVAILABLE STAR STORIES (from Career Highlights)
+
+${highlightsContext}
+
+---
+
+## YOUR TASK
+
+Analyze the user's preparation notes critically. Identify what's MISSING, WEAK, or OVERLOOKED.
+
+**Rules:**
+1. Do NOT give generic advice like "research the company" - be SPECIFIC about WHAT to research and WHY it matters for THIS interview
+2. If they have NO preparation notes, call that out directly and tell them exactly what they need to prepare
+3. If they have notes, identify GAPS - what critical topics are they missing for this type of interview?
+4. Reference their career highlights if relevant - suggest SPECIFIC stories they should prepare based on the interview type
+5. If interviewers are listed, give specific advice about researching THOSE people
+6. Consider what typically goes WRONG in ${stepTypeLabels[step.step_type] || step.step_type} interviews
+
+**Format:**
+- Start with a 1-line assessment of their current preparation level (Unprepared / Partially Prepared / Well Prepared)
+- Then list 3-5 SPECIFIC gaps or action items, prioritized by importance
+- Each item should be actionable and specific to THIS interview, not generic advice
+- If they're missing obvious things for a ${stepTypeLabels[step.step_type] || step.step_type}, say so directly`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are a helpful career coach providing interview preparation advice. Be specific, actionable, and encouraging. Keep recommendations concise but valuable.",
+          content: "You are a direct, no-nonsense interview coach. Your job is to find gaps in preparation - not to give generic advice or encouragement. Be specific, be critical, and focus on what's MISSING. Never pad your response with obvious or generic tips. If their preparation is weak, say so clearly.",
         },
         {
           role: "user",
           content: prompt,
         },
       ],
-      max_tokens: 800,
-      temperature: 0.7,
+      max_tokens: 600,
+      temperature: 0.3,
     });
 
     const recommendations = completion.choices[0]?.message?.content;
