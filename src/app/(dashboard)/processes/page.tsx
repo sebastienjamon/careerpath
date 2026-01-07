@@ -767,6 +767,16 @@ export default function ProcessesPage() {
                             ) : (
                               <span className="capitalize">via {process.source}</span>
                             )}
+                            {process.hiring_manager_contact && (
+                              <span className="flex items-center gap-1">
+                                <img
+                                  src={getAvatarUrl(process.hiring_manager_contact)}
+                                  alt={process.hiring_manager_contact.name}
+                                  className="h-4 w-4 rounded-full"
+                                />
+                                HM: {process.hiring_manager_contact.name}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </Link>
