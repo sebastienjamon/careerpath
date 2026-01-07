@@ -1,0 +1,779 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import {
+  Award,
+  Plus,
+  Pencil,
+  Trash2,
+  Building2,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
+
+interface CareerExperience {
+  id: string;
+  company_name: string;
+  company_website: string | null;
+  job_title: string;
+}
+
+interface CareerHighlight {
+  id: string;
+  user_id: string;
+  career_experience_id: string | null;
+  company_name: string;
+  company_website: string | null;
+  title: string;
+  achievement_date: string | null;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+const months = [
+  { value: "01", label: "January" },
+  { value: "02", label: "February" },
+  { value: "03", label: "March" },
+  { value: "04", label: "April" },
+  { value: "05", label: "May" },
+  { value: "06", label: "June" },
+  { value: "07", label: "July" },
+  { value: "08", label: "August" },
+  { value: "09", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+];
+
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 30 }, (_, i) => currentYear - i);
+
+export default function HighlightsPage() {
+  const supabase = createClient();
+  const [highlights, setHighlights] = useState<CareerHighlight[]>([]);
+  const [experiences, setExperiences] = useState<CareerExperience[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingHighlight, setEditingHighlight] = useState<CareerHighlight | null>(null);
+  const [isTagging, setIsTagging] = useState(false);
+
+  const [formData, setFormData] = useState({
+    title: "",
+    company_name: "",
+    company_website: "",
+    career_experience_id: "",
+    achievement_month: "",
+    achievement_year: "",
+    situation: "",
+    task: "",
+    action: "",
+    result: "",
+    tags: [] as string[],
+  });
+
+  const fetchData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setIsLoading(true);
+
+    const [highlightsResult, experiencesResult, categoriesResult] = await Promise.all([
+      supabase
+        .from("career_highlights")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("achievement_date", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("career_experiences")
+        .select("id, company_name, company_website, job_title")
+        .eq("user_id", user.id)
+        .order("start_date", { ascending: false }),
+      supabase
+        .from("user_highlight_categories")
+        .select("name")
+        .eq("user_id", user.id),
+    ]);
+
+    if (highlightsResult.data) {
+      setHighlights(highlightsResult.data);
+    }
+    if (experiencesResult.data) {
+      setExperiences(experiencesResult.data);
+    }
+    if (categoriesResult.data) {
+      setCategories(categoriesResult.data.map(c => c.name));
+    }
+
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const parseDate = (date: string | null) => {
+    if (!date) return { month: "", year: "" };
+    const parts = date.split("-");
+    return { year: parts[0] || "", month: parts[1] || "" };
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      company_name: "",
+      company_website: "",
+      career_experience_id: "",
+      achievement_month: "",
+      achievement_year: "",
+      situation: "",
+      task: "",
+      action: "",
+      result: "",
+      tags: [],
+    });
+    setEditingHighlight(null);
+  };
+
+  const handleExperienceSelect = (experienceId: string) => {
+    if (experienceId === "none") {
+      setFormData({
+        ...formData,
+        career_experience_id: "",
+        company_name: "",
+        company_website: "",
+      });
+      return;
+    }
+
+    const experience = experiences.find(e => e.id === experienceId);
+    if (experience) {
+      setFormData({
+        ...formData,
+        career_experience_id: experienceId,
+        company_name: experience.company_name,
+        company_website: experience.company_website || "",
+      });
+    }
+  };
+
+  const handleEdit = (highlight: CareerHighlight) => {
+    const { month, year } = parseDate(highlight.achievement_date);
+    setEditingHighlight(highlight);
+    setFormData({
+      title: highlight.title,
+      company_name: highlight.company_name,
+      company_website: highlight.company_website || "",
+      career_experience_id: highlight.career_experience_id || "",
+      achievement_month: month,
+      achievement_year: year,
+      situation: highlight.situation,
+      task: highlight.task,
+      action: highlight.action,
+      result: highlight.result,
+      tags: highlight.tags || [],
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this highlight?")) return;
+
+    const { error } = await supabase
+      .from("career_highlights")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to delete highlight");
+      return;
+    }
+
+    toast.success("Highlight deleted");
+    fetchData();
+  };
+
+  const generateTags = async () => {
+    if (!formData.situation || !formData.task || !formData.action || !formData.result) {
+      toast.error("Please fill in all STAR fields first");
+      return;
+    }
+
+    setIsTagging(true);
+
+    try {
+      const response = await fetch("/api/highlights/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          situation: formData.situation,
+          task: formData.task,
+          action: formData.action,
+          result: formData.result,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate tags");
+      }
+
+      const data = await response.json();
+      setFormData({ ...formData, tags: data.tags });
+      toast.success("Tags generated!");
+    } catch {
+      toast.error("Failed to generate tags");
+    } finally {
+      setIsTagging(false);
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter(tag => tag !== tagToRemove),
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const achievementDate = formData.achievement_month && formData.achievement_year
+      ? `${formData.achievement_year}-${formData.achievement_month}-01`
+      : null;
+
+    const highlightData = {
+      user_id: user.id,
+      career_experience_id: formData.career_experience_id || null,
+      company_name: formData.company_name,
+      company_website: formData.company_website || null,
+      title: formData.title,
+      achievement_date: achievementDate,
+      situation: formData.situation,
+      task: formData.task,
+      action: formData.action,
+      result: formData.result,
+      tags: formData.tags,
+    };
+
+    if (editingHighlight) {
+      const { error } = await supabase
+        .from("career_highlights")
+        .update(highlightData)
+        .eq("id", editingHighlight.id);
+
+      if (error) {
+        toast.error("Failed to update highlight");
+        return;
+      }
+      toast.success("Highlight updated");
+    } else {
+      const { error } = await supabase
+        .from("career_highlights")
+        .insert(highlightData);
+
+      if (error) {
+        toast.error("Failed to add highlight");
+        return;
+      }
+      toast.success("Highlight added");
+    }
+
+    setIsDialogOpen(false);
+    resetForm();
+    fetchData();
+  };
+
+  const getCompanyLogo = (website: string | null) => {
+    if (!website) return null;
+    const domain = website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  };
+
+  const filteredHighlights = activeFilter === "all"
+    ? highlights
+    : highlights.filter(h => h.tags?.includes(activeFilter));
+
+  // Get unique tags from all highlights
+  const allTags = [...new Set(highlights.flatMap(h => h.tags || []))];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Career Highlights</h1>
+          <p className="text-slate-600 mt-1 text-sm sm:text-base">
+            Record achievements using STAR method for interview preparation
+          </p>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) resetForm();
+        }}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 w-full sm:w-auto">
+              <Plus className="h-4 w-4" />
+              Add Highlight
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingHighlight ? "Edit Highlight" : "Add Highlight"}
+              </DialogTitle>
+              <DialogDescription>
+                Record a career achievement using the STAR method
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Title */}
+              <div className="space-y-2">
+                <Label htmlFor="title">Achievement Title *</Label>
+                <Input
+                  id="title"
+                  placeholder="e.g., Increased ARR by 40% through strategic account expansion"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
+                />
+              </div>
+
+              {/* Link to Experience */}
+              <div className="space-y-2">
+                <Label>Link to Experience (Optional)</Label>
+                <Select
+                  value={formData.career_experience_id || "none"}
+                  onValueChange={handleExperienceSelect}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an experience" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None (standalone highlight)</SelectItem>
+                    {experiences.map((exp) => (
+                      <SelectItem key={exp.id} value={exp.id}>
+                        {exp.company_name} - {exp.job_title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Company & Website */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company_name">Company *</Label>
+                  <Input
+                    id="company_name"
+                    placeholder="Company name"
+                    value={formData.company_name}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company_website">Website (for logo)</Label>
+                  <Input
+                    id="company_website"
+                    placeholder="e.g., salesforce.com"
+                    value={formData.company_website}
+                    onChange={(e) => setFormData({ ...formData, company_website: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Date */}
+              <div className="space-y-2">
+                <Label>When did this happen?</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Select
+                    value={formData.achievement_month}
+                    onValueChange={(value) => setFormData({ ...formData, achievement_month: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {months.map((month) => (
+                        <SelectItem key={month.value} value={month.value}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={formData.achievement_year}
+                    onValueChange={(value) => setFormData({ ...formData, achievement_year: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* STAR Fields */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-medium text-slate-900">STAR Method</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="situation">
+                    <span className="font-semibold text-blue-600">S</span>ituation *
+                  </Label>
+                  <Textarea
+                    id="situation"
+                    placeholder="Describe the context and background..."
+                    value={formData.situation}
+                    onChange={(e) => setFormData({ ...formData, situation: e.target.value })}
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="task">
+                    <span className="font-semibold text-blue-600">T</span>ask *
+                  </Label>
+                  <Textarea
+                    id="task"
+                    placeholder="What was required of you? What was the challenge?"
+                    value={formData.task}
+                    onChange={(e) => setFormData({ ...formData, task: e.target.value })}
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="action">
+                    <span className="font-semibold text-blue-600">A</span>ction *
+                  </Label>
+                  <Textarea
+                    id="action"
+                    placeholder="What specific actions did you take?"
+                    value={formData.action}
+                    onChange={(e) => setFormData({ ...formData, action: e.target.value })}
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="result">
+                    <span className="font-semibold text-blue-600">R</span>esult *
+                  </Label>
+                  <Textarea
+                    id="result"
+                    placeholder="What was the outcome? Include measurable impact..."
+                    value={formData.result}
+                    onChange={(e) => setFormData({ ...formData, result: e.target.value })}
+                    rows={3}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div className="space-y-2 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <Label>Tags</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateTags}
+                    disabled={isTagging}
+                    className="gap-2"
+                  >
+                    {isTagging ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Generate Tags
+                  </Button>
+                </div>
+                {formData.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.tags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="gap-1 pr-1"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className="ml-1 hover:bg-slate-300 rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    Fill in STAR fields and click &quot;Generate Tags&quot; or tags will be auto-generated on save
+                  </p>
+                )}
+              </div>
+
+              {/* Submit */}
+              <div className="flex gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1">
+                  {editingHighlight ? "Update" : "Add"} Highlight
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Filter Tabs */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={activeFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveFilter("all")}
+          >
+            All ({highlights.length})
+          </Button>
+          {allTags.map((tag) => (
+            <Button
+              key={tag}
+              variant={activeFilter === tag ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveFilter(tag)}
+            >
+              {tag} ({highlights.filter(h => h.tags?.includes(tag)).length})
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {/* Highlights List */}
+      {filteredHighlights.length > 0 ? (
+        <div className="space-y-4">
+          {filteredHighlights.map((highlight) => (
+            <Card
+              key={highlight.id}
+              className="hover:shadow-md transition-shadow"
+            >
+              <CardContent className="p-4">
+                {/* Header */}
+                <div className="flex items-start gap-3">
+                  {/* Company Logo */}
+                  {getCompanyLogo(highlight.company_website) ? (
+                    <img
+                      src={getCompanyLogo(highlight.company_website)!}
+                      alt=""
+                      className="w-10 h-10 rounded"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-slate-200 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-5 h-5 text-slate-500" />
+                    </div>
+                  )}
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-medium text-slate-900 truncate">
+                          {highlight.title}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5">
+                          <span>{highlight.company_name}</span>
+                          {highlight.achievement_date && (
+                            <>
+                              <span>·</span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(highlight.achievement_date).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(highlight)}
+                          className="h-8 w-8"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(highlight.id)}
+                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Result Preview */}
+                    <p className="text-sm text-slate-600 mt-2 line-clamp-2">
+                      <span className="font-medium">Result:</span> {highlight.result}
+                    </p>
+
+                    {/* Tags */}
+                    {highlight.tags && highlight.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {highlight.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Expand/Collapse Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExpandedId(expandedId === highlight.id ? null : highlight.id)}
+                      className="mt-3 gap-1 text-slate-600 hover:text-slate-900 px-0"
+                    >
+                      {expandedId === highlight.id ? (
+                        <>
+                          <ChevronUp className="h-4 w-4" />
+                          Hide Details
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4" />
+                          View Full STAR
+                        </>
+                      )}
+                    </Button>
+
+                    {/* Expanded STAR View */}
+                    {expandedId === highlight.id && (
+                      <div className="mt-4 space-y-4 pt-4 border-t">
+                        <div>
+                          <h4 className="text-sm font-semibold text-blue-600 mb-1">SITUATION</h4>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{highlight.situation}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-blue-600 mb-1">TASK</h4>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{highlight.task}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-blue-600 mb-1">ACTION</h4>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{highlight.action}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-blue-600 mb-1">RESULT</h4>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{highlight.result}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Award className="h-12 w-12 text-slate-300 mb-4" />
+            <h3 className="font-medium text-slate-900 mb-1">
+              {activeFilter === "all" ? "No highlights yet" : `No highlights tagged with "${activeFilter}"`}
+            </h3>
+            <p className="text-sm text-slate-500 text-center mb-4">
+              {activeFilter === "all"
+                ? "Record your career achievements to prepare for interviews"
+                : "Try selecting a different filter or add new highlights"}
+            </p>
+            {activeFilter === "all" ? (
+              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Your First Highlight
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => setActiveFilter("all")}>
+                Clear Filter
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

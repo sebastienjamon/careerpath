@@ -21,6 +21,7 @@ import {
   Briefcase,
   LayoutDashboard,
   TrendingUp,
+  Award,
   Target,
   Users,
   GraduationCap,
@@ -33,6 +34,7 @@ import {
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Career Journey", href: "/journey", icon: TrendingUp },
+  { name: "Highlights", href: "/highlights", icon: Award },
   { name: "Recruitment", href: "/processes", icon: Target },
   { name: "Network", href: "/network", icon: Users },
   { name: "Coaches", href: "/coaches", icon: GraduationCap },
