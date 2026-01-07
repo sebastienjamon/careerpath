@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import Link from "next/link";
 import {
   Award,
   Plus,
@@ -31,8 +32,7 @@ import {
   Trash2,
   Building2,
   Calendar,
-  ChevronDown,
-  ChevronUp,
+  ArrowRight,
   Loader2,
   Sparkles,
   X,
@@ -86,7 +86,6 @@ export default function HighlightsPage() {
   const [experiences, setExperiences] = useState<CareerExperience[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingHighlight, setEditingHighlight] = useState<CareerHighlight | null>(null);
@@ -613,17 +612,17 @@ export default function HighlightsPage() {
         </div>
       )}
 
-      {/* Highlights List */}
+      {/* Highlights Grid */}
       {filteredHighlights.length > 0 ? (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredHighlights.map((highlight) => (
             <Card
               key={highlight.id}
-              className="hover:shadow-md transition-shadow"
+              className="hover:shadow-lg transition-shadow flex flex-col"
             >
-              <CardContent className="p-4">
-                {/* Header */}
-                <div className="flex items-start gap-3">
+              <CardContent className="p-4 flex flex-col flex-1">
+                {/* Header with Logo and Actions */}
+                <div className="flex items-start justify-between gap-2 mb-3">
                   {/* Company Logo */}
                   {getCompanyLogo(highlight.company_website) ? (
                     <img
@@ -637,114 +636,86 @@ export default function HighlightsPage() {
                     </div>
                   )}
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h3 className="font-medium text-slate-900 truncate">
-                          {highlight.title}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5">
-                          <span>{highlight.company_name}</span>
-                          {highlight.achievement_date && (
-                            <>
-                              <span>·</span>
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(highlight.achievement_date).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  year: "numeric",
-                                })}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(highlight)}
-                          className="h-8 w-8"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(highlight.id)}
-                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Result Preview */}
-                    <p className="text-sm text-slate-600 mt-2 line-clamp-2">
-                      <span className="font-medium">Result:</span> {highlight.result}
-                    </p>
-
-                    {/* Tags */}
-                    {highlight.tags && highlight.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {highlight.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Expand/Collapse Button */}
+                  {/* Actions */}
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
                     <Button
                       variant="ghost"
-                      size="sm"
-                      onClick={() => setExpandedId(expandedId === highlight.id ? null : highlight.id)}
-                      className="mt-3 gap-1 text-slate-600 hover:text-slate-900 px-0"
+                      size="icon"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleEdit(highlight);
+                      }}
+                      className="h-7 w-7"
                     >
-                      {expandedId === highlight.id ? (
-                        <>
-                          <ChevronUp className="h-4 w-4" />
-                          Hide Details
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="h-4 w-4" />
-                          View Full STAR
-                        </>
-                      )}
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
-
-                    {/* Expanded STAR View */}
-                    {expandedId === highlight.id && (
-                      <div className="mt-4 space-y-4 pt-4 border-t">
-                        <div>
-                          <h4 className="text-sm font-semibold text-blue-600 mb-1">SITUATION</h4>
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{highlight.situation}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-blue-600 mb-1">TASK</h4>
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{highlight.task}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-blue-600 mb-1">ACTION</h4>
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{highlight.action}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-blue-600 mb-1">RESULT</h4>
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{highlight.result}</p>
-                        </div>
-                      </div>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDelete(highlight.id);
+                      }}
+                      className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
+
+                {/* Title */}
+                <h3 className="font-medium text-slate-900 text-sm line-clamp-2 mb-1">
+                  {highlight.title}
+                </h3>
+
+                {/* Company with Highlighter + Date */}
+                <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+                  <span className="bg-yellow-200 px-1.5 py-0.5 rounded font-medium text-slate-800">
+                    {highlight.company_name}
+                  </span>
+                  {highlight.achievement_date && (
+                    <>
+                      <span>·</span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(highlight.achievement_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Result Preview with Highlighter */}
+                <p className="text-xs text-slate-600 line-clamp-3 flex-1">
+                  <span className="bg-lime-200 px-1 py-0.5 rounded font-semibold text-slate-800">Result:</span>{" "}
+                  {highlight.result}
+                </p>
+
+                {/* Tags */}
+                {highlight.tags && highlight.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {highlight.tags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* View Full STAR Link */}
+                <Link
+                  href={`/highlights/${highlight.id}`}
+                  className="mt-3 pt-3 border-t flex items-center justify-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  View Full STAR
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
               </CardContent>
             </Card>
           ))}
