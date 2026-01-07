@@ -13,9 +13,12 @@ interface CoachWithExperience {
   hourly_rate: number;
   bio: string | null;
   rating: number | null;
+  display_name: string | null;
+  show_real_identity: boolean;
   users: {
     full_name: string | null;
     avatar_url: string | null;
+    linkedin_profile_url: string | null;
   } | null;
   career_experiences: Array<{
     company_name: string;
@@ -81,9 +84,12 @@ export async function POST(request: NextRequest) {
         hourly_rate,
         bio,
         rating,
+        display_name,
+        show_real_identity,
         users (
           full_name,
-          avatar_url
+          avatar_url,
+          linkedin_profile_url
         )
       `)
       .eq("availability_status", "available")
@@ -123,7 +129,9 @@ export async function POST(request: NextRequest) {
         hourly_rate: coach.hourly_rate,
         bio: coach.bio,
         rating: coach.rating,
-        users: userData as { full_name: string | null; avatar_url: string | null } | null,
+        display_name: (coach as any).display_name || null,
+        show_real_identity: (coach as any).show_real_identity !== false,
+        users: userData as { full_name: string | null; avatar_url: string | null; linkedin_profile_url: string | null } | null,
         career_experiences: experiencesByUser[coach.user_id] || [],
       };
     });
@@ -250,16 +258,23 @@ IMPORTANT: Always return the top 3 coaches ranked by relevance, even if the matc
       const coach = coachesWithExperience.find(c => c.id === rec.coach_id);
       if (!coach) return null;
 
+      // Respect privacy settings
+      const showRealIdentity = coach.show_real_identity !== false;
+      const displayName = showRealIdentity
+        ? (coach.users?.full_name || coach.display_name || "Coach")
+        : (coach.display_name || "Coach");
+
       return {
         ...rec,
         coach: {
           id: coach.id,
-          name: coach.users?.full_name || "Unknown",
-          avatar_url: coach.users?.avatar_url,
+          name: displayName,
+          avatar_url: showRealIdentity ? coach.users?.avatar_url : null,
           specialties: coach.specialties,
           hourly_rate: coach.hourly_rate,
           rating: coach.rating,
           bio: coach.bio,
+          linkedin_url: showRealIdentity ? coach.users?.linkedin_profile_url : null,
         },
       };
     }).filter(Boolean);

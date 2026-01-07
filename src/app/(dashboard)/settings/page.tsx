@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Linkedin, Bell, Loader2, CheckCircle2, ExternalLink, Briefcase, ArrowRight, Calendar, GraduationCap, DollarSign } from "lucide-react";
+import { User, Linkedin, Bell, Loader2, CheckCircle2, ExternalLink, Briefcase, ArrowRight, Calendar, GraduationCap, DollarSign, Shield } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -24,6 +25,8 @@ interface CoachProfile {
   availability_status: 'available' | 'busy' | 'unavailable';
   stripe_onboarding_complete: boolean;
   rating: number | null;
+  display_name: string | null;
+  show_real_identity: boolean;
 }
 
 interface LinkedInData {
@@ -52,6 +55,8 @@ export default function SettingsPage() {
     hourly_rate: "",
     bio: "",
     availability_status: "available" as CoachProfile["availability_status"],
+    display_name: "",
+    show_real_identity: true,
   });
   const [user, setUser] = useState<{
     id: string;
@@ -136,7 +141,7 @@ export default function SettingsPage() {
 
     const { data } = await supabase
       .from("coaches")
-      .select("id, specialties, hourly_rate, bio, availability_status, stripe_onboarding_complete, rating")
+      .select("id, specialties, hourly_rate, bio, availability_status, stripe_onboarding_complete, rating, display_name, show_real_identity")
       .eq("user_id", authUser.id)
       .single();
 
@@ -147,6 +152,8 @@ export default function SettingsPage() {
         hourly_rate: data.hourly_rate?.toString() || "",
         bio: data.bio || "",
         availability_status: data.availability_status || "available",
+        display_name: data.display_name || "",
+        show_real_identity: data.show_real_identity !== false,
       });
     }
   };
@@ -169,6 +176,8 @@ export default function SettingsPage() {
         hourly_rate: parseFloat(coachFormData.hourly_rate) || 0,
         bio: coachFormData.bio || null,
         availability_status: coachFormData.availability_status,
+        display_name: coachFormData.display_name || null,
+        show_real_identity: coachFormData.show_real_identity,
       })
       .eq("id", coachProfile.id);
 
@@ -717,6 +726,49 @@ export default function SettingsPage() {
                     />
                   </div>
 
+                  {/* Privacy Settings */}
+                  <div className="p-4 bg-slate-50 rounded-lg space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-slate-600" />
+                      <span className="text-sm font-medium text-slate-900">Privacy Settings</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="show_real_identity" className="text-sm font-normal">
+                          Show my real name and photo
+                        </Label>
+                        <p className="text-xs text-slate-500">
+                          When disabled, your display name and an avatar will be used instead
+                        </p>
+                      </div>
+                      <Switch
+                        id="show_real_identity"
+                        checked={coachFormData.show_real_identity}
+                        onCheckedChange={(checked) =>
+                          setCoachFormData({ ...coachFormData, show_real_identity: checked })
+                        }
+                      />
+                    </div>
+
+                    {!coachFormData.show_real_identity && (
+                      <div className="space-y-2">
+                        <Label htmlFor="display_name">Display Name</Label>
+                        <Input
+                          id="display_name"
+                          value={coachFormData.display_name}
+                          onChange={(e) =>
+                            setCoachFormData({ ...coachFormData, display_name: e.target.value })
+                          }
+                          placeholder="e.g., Coach Alex, Tech Interview Pro"
+                        />
+                        <p className="text-xs text-slate-500">
+                          This name will be shown to clients instead of your real name
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                       {coachProfile.stripe_onboarding_complete ? (
@@ -756,14 +808,26 @@ export default function SettingsPage() {
                 <div className="bg-white rounded-lg border p-4">
                   <div className="flex items-start gap-4">
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={user?.avatar_url} />
-                      <AvatarFallback className="bg-blue-100 text-blue-700">
-                        {user?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase() || "C"}
-                      </AvatarFallback>
+                      {coachFormData.show_real_identity ? (
+                        <>
+                          <AvatarImage src={user?.avatar_url} />
+                          <AvatarFallback className="bg-blue-100 text-blue-700">
+                            {user?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase() || "C"}
+                          </AvatarFallback>
+                        </>
+                      ) : (
+                        <AvatarFallback className="bg-indigo-100 text-indigo-700">
+                          {coachFormData.display_name?.split(" ").map(n => n[0]).join("").toUpperCase() || "C"}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-slate-900">{user?.full_name || "Your Name"}</h3>
+                        <h3 className="font-semibold text-slate-900">
+                          {coachFormData.show_real_identity
+                            ? (user?.full_name || "Your Name")
+                            : (coachFormData.display_name || "Display Name")}
+                        </h3>
                         {coachProfile.rating && (
                           <span className="text-sm text-slate-500">★ {coachProfile.rating.toFixed(1)}</span>
                         )}
@@ -784,6 +848,11 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+                {!coachFormData.show_real_identity && (
+                  <p className="text-xs text-slate-500 mt-2 text-center">
+                    Your real identity is hidden. Clients will see your display name and a generated avatar.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

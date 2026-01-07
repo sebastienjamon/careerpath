@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Star,
-  DollarSign,
   ChevronDown,
   ChevronUp,
   Calendar,
@@ -32,6 +31,7 @@ import {
   ExternalLink,
   CheckCircle,
   Sparkles,
+  Linkedin,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,6 +49,7 @@ interface CoachRecommendation {
     hourly_rate: number;
     rating: number | null;
     bio: string | null;
+    linkedin_url: string | null;
   };
 }
 
@@ -170,7 +171,7 @@ export function CoachRecommendationCard({
                 </div>
               </div>
 
-              {/* Rating & Price */}
+              {/* Rating, Price & LinkedIn */}
               <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                 {coach.rating && (
                   <span className="flex items-center gap-0.5">
@@ -178,10 +179,18 @@ export function CoachRecommendationCard({
                     {coach.rating.toFixed(1)}
                   </span>
                 )}
-                <span className="flex items-center gap-0.5">
-                  <DollarSign className="h-3 w-3" />
-                  ${coach.hourly_rate}/hr
-                </span>
+                <span>${coach.hourly_rate}/hr</span>
+                {coach.linkedin_url && (
+                  <a
+                    href={coach.linkedin_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-0.5 text-blue-600 hover:text-blue-800"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Linkedin className="h-3 w-3" />
+                  </a>
+                )}
               </div>
 
               {/* Quick Reasons (always visible) */}

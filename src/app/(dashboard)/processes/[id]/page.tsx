@@ -203,6 +203,7 @@ interface CoachRecommendation {
     hourly_rate: number;
     rating: number | null;
     bio: string | null;
+    linkedin_url: string | null;
   };
 }
 
