@@ -1302,41 +1302,54 @@ export default function ProcessDetailPage() {
                   </Badge>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                onClick={() => {
-                  if (processCoachRecommendations.length === 0) {
-                    fetchProcessCoachRecommendations();
-                  } else {
-                    setCoachRecommendationsExpanded(!coachRecommendationsExpanded);
-                  }
-                }}
-                disabled={isLoadingProcessCoaches}
-              >
-                {isLoadingProcessCoaches ? (
-                  <>
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Finding...
-                  </>
-                ) : processCoachRecommendations.length === 0 ? (
-                  <>
-                    <Sparkles className="h-3 w-3" />
-                    Find Coaches
-                  </>
-                ) : coachRecommendationsExpanded ? (
-                  <>
-                    <ChevronUp className="h-3 w-3" />
-                    Hide
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-3 w-3" />
-                    Show
-                  </>
+              <div className="flex items-center gap-1">
+                {processCoachRecommendations.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={fetchProcessCoachRecommendations}
+                    disabled={isLoadingProcessCoaches}
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isLoadingProcessCoaches ? 'animate-spin' : ''}`} />
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={() => {
+                    if (processCoachRecommendations.length === 0) {
+                      fetchProcessCoachRecommendations();
+                    } else {
+                      setCoachRecommendationsExpanded(!coachRecommendationsExpanded);
+                    }
+                  }}
+                  disabled={isLoadingProcessCoaches}
+                >
+                  {isLoadingProcessCoaches ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Finding...
+                    </>
+                  ) : processCoachRecommendations.length === 0 ? (
+                    <>
+                      <Sparkles className="h-3 w-3" />
+                      Find Coaches
+                    </>
+                  ) : coachRecommendationsExpanded ? (
+                    <>
+                      <ChevronUp className="h-3 w-3" />
+                      Hide
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-3 w-3" />
+                      Show
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
             {processCoachRecommendations.length === 0 && !isLoadingProcessCoaches && (
@@ -1346,31 +1359,14 @@ export default function ProcessDetailPage() {
             )}
 
             {coachRecommendationsExpanded && processCoachRecommendations.length > 0 && (
-              <div className="space-y-3 mt-3">
-                <p className="text-xs text-slate-500">
-                  AI-matched coaches for your target role
-                </p>
-                <div className="space-y-2">
-                  {processCoachRecommendations.map((rec) => (
-                    <CoachRecommendationCard
-                      key={rec.coach_id}
-                      recommendation={rec}
-                      compact
-                    />
-                  ))}
-                </div>
-                <div className="flex justify-center pt-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-slate-500 gap-1 h-6"
-                    onClick={fetchProcessCoachRecommendations}
-                    disabled={isLoadingProcessCoaches}
-                  >
-                    <RefreshCw className={`h-3 w-3 ${isLoadingProcessCoaches ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
-                </div>
+              <div className="space-y-2">
+                {processCoachRecommendations.map((rec) => (
+                  <CoachRecommendationCard
+                    key={rec.coach_id}
+                    recommendation={rec}
+                    compact
+                  />
+                ))}
               </div>
             )}
           </CardContent>

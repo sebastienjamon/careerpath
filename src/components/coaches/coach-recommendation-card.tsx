@@ -199,9 +199,27 @@ export function CoachRecommendationCard({
             </div>
           </div>
 
+          {/* Expand/Collapse Toggle - Always visible */}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center justify-center gap-1 mt-2 w-full text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="h-3 w-3" />
+                Less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3 w-3" />
+                More details
+              </>
+            )}
+          </button>
+
           {/* Expanded Details */}
           {isExpanded && (
-            <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
+            <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
               {/* Value Proposition */}
               <div>
                 <p className="text-xs font-medium text-slate-700 mb-1">How they can help:</p>
@@ -244,41 +262,29 @@ export function CoachRecommendationCard({
                   <p className="text-xs text-slate-500 line-clamp-3">{coach.bio}</p>
                 </div>
               )}
+
+              {/* Actions - Only visible when expanded */}
+              <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                <Button
+                  size="sm"
+                  className="flex-1 h-8 text-xs"
+                  onClick={() => setIsBookingOpen(true)}
+                >
+                  <Calendar className="h-3 w-3 mr-1" />
+                  Book Session
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => router.push(`/coaches?highlight=${coach.id}`)}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Profile
+                </Button>
+              </div>
             </div>
           )}
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-            <Button
-              size="sm"
-              className="flex-1 h-8 text-xs"
-              onClick={() => setIsBookingOpen(true)}
-            >
-              <Calendar className="h-3 w-3 mr-1" />
-              Book Session
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => router.push(`/coaches?highlight=${coach.id}`)}
-            >
-              <ExternalLink className="h-3 w-3 mr-1" />
-              Profile
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
