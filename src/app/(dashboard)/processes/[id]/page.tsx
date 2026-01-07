@@ -409,16 +409,24 @@ export default function ProcessDetailPage() {
         body: JSON.stringify({ processId }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setProcessCoachRecommendations(data.recommendations || []);
-        // Auto-expand when recommendations are loaded
-        if (data.recommendations?.length > 0) {
-          setCoachRecommendationsExpanded(true);
-        }
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Failed to fetch coaches");
+        return;
+      }
+
+      const recommendations = data.recommendations || [];
+      setProcessCoachRecommendations(recommendations);
+
+      if (recommendations.length > 0) {
+        setCoachRecommendationsExpanded(true);
+      } else {
+        toast.info("No matching coaches found for this opportunity");
       }
     } catch (error) {
       console.error("Failed to fetch coach recommendations:", error);
+      toast.error("Failed to fetch coaches");
     } finally {
       setIsLoadingProcessCoaches(false);
     }
