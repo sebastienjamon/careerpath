@@ -85,16 +85,36 @@ export default async function HighlightDetailPage({ params }: PageProps) {
                 )}
               </div>
 
-              {/* Tags */}
-              {highlight.tags && highlight.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {highlight.tags.map((tag: string) => (
-                    <Badge key={tag} variant="secondary">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              {/* Tags - Two Groups */}
+              <div className="mt-4 space-y-3">
+                {/* Skills Tags */}
+                {highlight.tags && highlight.tags.length > 0 && (
+                  <div>
+                    <span className="text-xs text-slate-400 uppercase tracking-wide">Skills</span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {highlight.tags.map((tag: string) => (
+                        <Badge key={tag} variant="secondary" className="bg-blue-100 text-blue-800">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Values Tags */}
+                {highlight.reflection_tags && highlight.reflection_tags.length > 0 && (
+                  <div>
+                    <span className="text-xs text-slate-400 uppercase tracking-wide">Values</span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {highlight.reflection_tags.map((tag: string) => (
+                        <Badge key={tag} variant="secondary" className="bg-amber-100 text-amber-800">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -161,6 +181,32 @@ export default async function HighlightDetailPage({ params }: PageProps) {
             </p>
           </CardContent>
         </Card>
+
+        {/* Reflection Section */}
+        {highlight.reflection && (
+          <Card className="border-amber-200 bg-amber-50/30">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-amber-800 font-bold">
+                  ?
+                </span>
+                <span className="text-amber-800">What This Demonstrates</span>
+              </h2>
+              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
+                {highlight.reflection}
+              </p>
+              {highlight.reflection_tags && highlight.reflection_tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-amber-200">
+                  {highlight.reflection_tags.map((tag: string) => (
+                    <Badge key={tag} variant="secondary" className="bg-amber-100 text-amber-800">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Footer */}

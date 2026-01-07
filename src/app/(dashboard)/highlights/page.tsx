@@ -58,6 +58,8 @@ interface CareerHighlight {
   action: string;
   result: string;
   tags: string[];
+  reflection: string | null;
+  reflection_tags: string[];
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +92,7 @@ export default function HighlightsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingHighlight, setEditingHighlight] = useState<CareerHighlight | null>(null);
   const [isTagging, setIsTagging] = useState(false);
+  const [isReflectionTagging, setIsReflectionTagging] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -103,6 +106,8 @@ export default function HighlightsPage() {
     action: "",
     result: "",
     tags: [] as string[],
+    reflection: "",
+    reflection_tags: [] as string[],
   });
 
   const fetchData = async () => {
@@ -164,6 +169,8 @@ export default function HighlightsPage() {
       action: "",
       result: "",
       tags: [],
+      reflection: "",
+      reflection_tags: [],
     });
     setEditingHighlight(null);
   };
@@ -205,6 +212,8 @@ export default function HighlightsPage() {
       action: highlight.action,
       result: highlight.result,
       tags: highlight.tags || [],
+      reflection: highlight.reflection || "",
+      reflection_tags: highlight.reflection_tags || [],
     });
     setIsDialogOpen(true);
   };
@@ -267,6 +276,46 @@ export default function HighlightsPage() {
     });
   };
 
+  const generateReflectionTags = async () => {
+    if (!formData.reflection || formData.reflection.trim().length < 10) {
+      toast.error("Please write a meaningful reflection first");
+      return;
+    }
+
+    setIsReflectionTagging(true);
+
+    try {
+      const response = await fetch("/api/highlights/reflection-tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reflection: formData.reflection,
+          title: formData.title,
+          result: formData.result,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate tags");
+      }
+
+      const data = await response.json();
+      setFormData({ ...formData, reflection_tags: data.tags });
+      toast.success("Values tags generated!");
+    } catch {
+      toast.error("Failed to generate tags");
+    } finally {
+      setIsReflectionTagging(false);
+    }
+  };
+
+  const removeReflectionTag = (tagToRemove: string) => {
+    setFormData({
+      ...formData,
+      reflection_tags: formData.reflection_tags.filter(tag => tag !== tagToRemove),
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -289,6 +338,8 @@ export default function HighlightsPage() {
       action: formData.action,
       result: formData.result,
       tags: formData.tags,
+      reflection: formData.reflection || null,
+      reflection_tags: formData.reflection_tags,
     };
 
     if (editingHighlight) {
@@ -524,10 +575,12 @@ export default function HighlightsPage() {
                 </div>
               </div>
 
-              {/* Tags */}
+              {/* Skills Tags */}
               <div className="space-y-2 pt-4 border-t">
                 <div className="flex items-center justify-between">
-                  <Label>Tags</Label>
+                  <Label className="text-slate-700">
+                    Skills <span className="text-slate-400 font-normal">(from STAR)</span>
+                  </Label>
                   <Button
                     type="button"
                     variant="outline"
@@ -541,7 +594,7 @@ export default function HighlightsPage() {
                     ) : (
                       <Sparkles className="h-4 w-4" />
                     )}
-                    Generate Tags
+                    Generate
                   </Button>
                 </div>
                 {formData.tags.length > 0 ? (
@@ -550,13 +603,13 @@ export default function HighlightsPage() {
                       <Badge
                         key={tag}
                         variant="secondary"
-                        className="gap-1 pr-1"
+                        className="gap-1 pr-1 bg-blue-100 text-blue-800 hover:bg-blue-200"
                       >
                         {tag}
                         <button
                           type="button"
                           onClick={() => removeTag(tag)}
-                          className="ml-1 hover:bg-slate-300 rounded-full p-0.5"
+                          className="ml-1 hover:bg-blue-300 rounded-full p-0.5"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -564,10 +617,79 @@ export default function HighlightsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    Fill in STAR fields and click &quot;Generate Tags&quot; or tags will be auto-generated on save
+                  <p className="text-xs text-slate-500">
+                    Fill in STAR fields and click Generate
                   </p>
                 )}
+              </div>
+
+              {/* Reflection Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <div>
+                  <h3 className="font-medium text-slate-900">What This Demonstrates</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Optional: Explain why this highlight matters and what personal values it shows
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="reflection">Your Reflection</Label>
+                  <Textarea
+                    id="reflection"
+                    placeholder="What makes this achievement meaningful? What does it say about your character, values, or approach? (e.g., demonstrates integrity by..., shows collaboration through...)"
+                    value={formData.reflection}
+                    onChange={(e) => setFormData({ ...formData, reflection: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Values Tags */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-slate-700">
+                      Values <span className="text-slate-400 font-normal">(from reflection)</span>
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generateReflectionTags}
+                      disabled={isReflectionTagging || !formData.reflection}
+                      className="gap-2"
+                    >
+                      {isReflectionTagging ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      Generate
+                    </Button>
+                  </div>
+                  {formData.reflection_tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.reflection_tags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className="gap-1 pr-1 bg-amber-100 text-amber-800 hover:bg-amber-200"
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => removeReflectionTag(tag)}
+                            className="ml-1 hover:bg-amber-300 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      Write a reflection and click Generate to identify values
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Submit */}
@@ -693,20 +815,44 @@ export default function HighlightsPage() {
                   {highlight.result}
                 </p>
 
-                {/* Tags */}
-                {highlight.tags && highlight.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {highlight.tags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="text-[10px] px-1.5 py-0"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+                {/* Tags - Two Groups */}
+                <div className="mt-3 space-y-2">
+                  {/* Skills Tags */}
+                  {highlight.tags && highlight.tags.length > 0 && (
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wide">Skills</span>
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {highlight.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Values Tags */}
+                  {highlight.reflection_tags && highlight.reflection_tags.length > 0 && (
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wide">Values</span>
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {highlight.reflection_tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* View Full STAR Link */}
                 <Link
