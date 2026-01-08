@@ -356,11 +356,15 @@ export default function ProcessDetailPage() {
   const OutputStepContent = ({
     step,
     onUpdate,
-    allSteps
+    allSteps,
+    onGenerateScore,
+    isGenerating
   }: {
     step: ProcessStep;
     onUpdate: (field: 'went_well' | 'to_improve', values: string[]) => void;
     allSteps: ProcessStep[];
+    onGenerateScore: () => void;
+    isGenerating: boolean;
   }) => {
     const [newWentWell, setNewWentWell] = useState("");
     const [newToImprove, setNewToImprove] = useState("");
@@ -499,6 +503,31 @@ export default function ProcessDetailPage() {
           </div>
         </div>
         </div>
+
+        {/* Generate Score Button - show when items exist but no score */}
+        {((step.went_well?.length || 0) > 0 || (step.to_improve?.length || 0) > 0) && step.output_score === null && (
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onGenerateScore}
+              disabled={isGenerating}
+              className="gap-2"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculating Score...
+                </>
+              ) : (
+                <>
+                  <ClipboardCheck className="h-4 w-4" />
+                  Generate Performance Score
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     );
   };
@@ -2036,6 +2065,8 @@ export default function ProcessDetailPage() {
                                 step={step}
                                 onUpdate={(field, values) => handleUpdateOutputStep(step.id, field, values)}
                                 allSteps={steps}
+                                onGenerateScore={() => generateOutputScore(step.id)}
+                                isGenerating={isGeneratingScore === step.id}
                               />
                             ) : (
                               <>
