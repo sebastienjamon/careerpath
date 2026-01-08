@@ -92,10 +92,10 @@ Company: ${(step.recruitment_processes as any).company_name}
 Position: ${(step.recruitment_processes as any).job_title}${linkedStepContext}
 
 **What Went Well:**
-${wentWell.length > 0 ? wentWell.map(item => `- ${item}`).join("\n") : "- Nothing listed"}
+${wentWell.length > 0 ? wentWell.map((item: string) => `- ${item}`).join("\n") : "- Nothing listed"}
 
 **What Could Be Improved:**
-${toImprove.length > 0 ? toImprove.map(item => `- ${item}`).join("\n") : "- Nothing listed"}
+${toImprove.length > 0 ? toImprove.map((item: string) => `- ${item}`).join("\n") : "- Nothing listed"}
 
 **Scoring Criteria:**
 - 90-100: Exceptional - Strong technical & soft skills, minimal improvements needed, excellent self-awareness
