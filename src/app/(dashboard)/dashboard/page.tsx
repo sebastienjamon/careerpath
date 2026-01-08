@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Building2,
 } from "lucide-react";
+import { CareerAssistant } from "@/components/dashboard/career-assistant";
 
 interface UpcomingStep {
   id: string;
@@ -197,6 +198,9 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {/* AI Career Assistant */}
+      <CareerAssistant />
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Upcoming interviews */}
