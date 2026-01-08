@@ -748,184 +748,100 @@ export default function HighlightsPage() {
 
       {/* Collapsible Filter Section */}
       {(allSkillTags.length > 0 || allValueTags.length > 0) && (
-        <Card className="bg-slate-50/50 overflow-hidden">
-          {/* Clickable Header - Compact */}
+        <div className={`transition-all ${isFilterExpanded ? 'rounded-lg border bg-slate-50/50' : ''}`}>
+          {/* Ultra-compact header */}
           <button
             onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-            className="w-full px-3 py-1.5 flex items-center justify-between hover:bg-slate-100/50 transition-colors"
+            className={`flex items-center gap-1 transition-colors rounded ${isFilterExpanded ? 'w-full px-2 py-1 hover:bg-slate-100/50' : 'px-1.5 py-0.5 hover:bg-slate-100 border border-transparent hover:border-slate-200'}`}
           >
-            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-              <Filter className="h-3.5 w-3.5" />
-              <span>Filter</span>
-              {hasActiveFilters && (
-                <span className="text-slate-400">
-                  ({filteredHighlights.length}/{highlights.length})
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5">
-              {/* Collapsed summary of active filters */}
-              {!isFilterExpanded && hasActiveFilters && (
-                <div className="flex items-center gap-1">
-                  {activeSkillFilters.slice(0, 3).map((tag) => (
-                    <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700">
-                      {tag}
-                    </span>
-                  ))}
-                  {activeValueFilters.slice(0, 3).map((tag) => (
-                    <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700">
-                      {tag}
-                    </span>
-                  ))}
-                  {(activeSkillFilters.length + activeValueFilters.length) > 6 && (
-                    <span className="text-[10px] text-slate-400">+{activeSkillFilters.length + activeValueFilters.length - 6}</span>
-                  )}
-                </div>
-              )}
-              {isFilterExpanded ? (
-                <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-              )}
-            </div>
+            <Filter className={`h-3 w-3 ${hasActiveFilters ? 'text-blue-500' : 'text-slate-400'}`} />
+            {isFilterExpanded && <span className="text-xs text-slate-500">Filter by tags</span>}
+            {!isFilterExpanded && hasActiveFilters && (
+              <span className="text-[10px] text-slate-500">{filteredHighlights.length}/{highlights.length}</span>
+            )}
+            {isFilterExpanded ? (
+              <ChevronUp className="h-3 w-3 text-slate-400" />
+            ) : (
+              <ChevronDown className="h-3 w-3 text-slate-400" />
+            )}
           </button>
 
           {/* Expandable Content */}
           <div
             className={`
               transition-all duration-200 ease-in-out
-              ${isFilterExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}
+              ${isFilterExpanded ? "max-h-[300px] opacity-100" : "max-h-0 opacity-0"}
               overflow-hidden
             `}
           >
-            <CardContent className="px-4 pb-4 pt-0">
-              {/* Clear All Button */}
-              {hasActiveFilters && (
-                <div className="flex justify-end mb-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
+            <div className="px-2 pb-2 pt-1">
+              {/* Compact Two-Column Layout */}
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {/* Skills */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-medium text-blue-600 uppercase">Skills:</span>
+                  {allSkillTags.map((tag) => {
+                    const isActive = activeSkillFilters.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSkillFilter(tag);
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
+                          isActive
+                            ? "bg-blue-600 text-white"
+                            : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Values */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-medium text-emerald-600 uppercase">Values:</span>
+                  {allValueTags.map((tag) => {
+                    const isActive = activeValueFilters.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleValueFilter(tag);
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
+                          isActive
+                            ? "bg-emerald-600 text-white"
+                            : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Clear All - inline */}
+                {hasActiveFilters && (
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       clearAllFilters();
                     }}
-                    className="h-7 text-xs text-slate-500 hover:text-slate-700"
+                    className="text-[10px] text-slate-400 hover:text-slate-600 flex items-center gap-0.5"
                   >
-                    Clear all
-                    <X className="h-3 w-3 ml-1" />
-                  </Button>
-                </div>
-              )}
-
-              {/* Two-Column Layout */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Skills Column */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                    <Wrench className="h-3.5 w-3.5" />
-                    Skills
-                    {activeSkillFilters.length > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveSkillFilters([]);
-                        }}
-                        className="ml-auto text-blue-500 hover:text-blue-700 normal-case font-normal"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  {allSkillTags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {allSkillTags.map((tag) => {
-                        const isActive = activeSkillFilters.includes(tag);
-                        const count = highlights.filter(h => h.tags?.includes(tag)).length;
-                        return (
-                          <button
-                            key={tag}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleSkillFilter(tag);
-                            }}
-                            className={`
-                              inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
-                              transition-all duration-150 border
-                              ${isActive
-                                ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                                : "bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50"
-                              }
-                            `}
-                          >
-                            {isActive && <Check className="h-3 w-3" />}
-                            {tag}
-                            <span className={`ml-0.5 ${isActive ? "text-blue-200" : "text-slate-400"}`}>
-                              {count}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No skill tags yet</p>
-                  )}
-                </div>
-
-                {/* Values Column */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 uppercase tracking-wide">
-                    <Lightbulb className="h-3.5 w-3.5" />
-                    Values
-                    {activeValueFilters.length > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveValueFilters([]);
-                        }}
-                        className="ml-auto text-emerald-500 hover:text-emerald-700 normal-case font-normal"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  {allValueTags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {allValueTags.map((tag) => {
-                        const isActive = activeValueFilters.includes(tag);
-                        const count = highlights.filter(h => h.reflection_tags?.includes(tag)).length;
-                        return (
-                          <button
-                            key={tag}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleValueFilter(tag);
-                            }}
-                            className={`
-                              inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
-                              transition-all duration-150 border
-                              ${isActive
-                                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50"
-                              }
-                            `}
-                          >
-                            {isActive && <Check className="h-3 w-3" />}
-                            {tag}
-                            <span className={`ml-0.5 ${isActive ? "text-emerald-200" : "text-slate-400"}`}>
-                              {count}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No value tags yet</p>
-                  )}
-                </div>
+                    <X className="h-2.5 w-2.5" />
+                    Clear
+                  </button>
+                )}
               </div>
-            </CardContent>
+            </div>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Highlights Grid */}
