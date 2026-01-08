@@ -67,6 +67,7 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import { remarkMark } from "remark-mark-highlight";
 import { EventPicker } from "@/components/calendar/event-picker";
 import { CoachRecommendationCard } from "@/components/coaches/coach-recommendation-card";
 
@@ -2453,7 +2454,14 @@ export default function ProcessDetailPage() {
                               {notesPreviewMode[step.id] !== false ? (
                                 <div className="min-h-[100px] p-3 border rounded-md bg-slate-50 prose prose-sm prose-slate max-w-none">
                                   {step.preparation_notes ? (
-                                    <ReactMarkdown>{step.preparation_notes}</ReactMarkdown>
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkMark]}
+                                      components={{
+                                        mark: ({ children }) => (
+                                          <mark className="bg-yellow-200 px-0.5 rounded">{children}</mark>
+                                        ),
+                                      }}
+                                    >{step.preparation_notes}</ReactMarkdown>
                                   ) : (
                                     <p className="text-slate-400 italic">No notes yet. Switch to Edit to add some.</p>
                                   )}
@@ -2467,7 +2475,7 @@ export default function ProcessDetailPage() {
                                     ));
                                   }}
                                   onBlur={(e) => handleSavePreparationNotes(step.id, e.target.value)}
-                                  placeholder="Your notes for this interview...&#10;&#10;**Markdown supported** - use *italic*, **bold**, - lists"
+                                  placeholder="Your notes for this interview...&#10;&#10;**Markdown** - *italic*, **bold**, ==highlight==, - lists"
                                   className="min-h-[100px] resize-y font-mono text-sm"
                                 />
                               )}
