@@ -140,6 +140,7 @@ export interface Database {
           went_well: string[]
           to_improve: string[]
           linked_step_id: string | null
+          output_score: number | null
           created_at: string
           updated_at: string
         }
@@ -156,6 +157,7 @@ export interface Database {
           went_well?: string[]
           to_improve?: string[]
           linked_step_id?: string | null
+          output_score?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -172,6 +174,7 @@ export interface Database {
           went_well?: string[]
           to_improve?: string[]
           linked_step_id?: string | null
+          output_score?: number | null
           created_at?: string
           updated_at?: string
         }

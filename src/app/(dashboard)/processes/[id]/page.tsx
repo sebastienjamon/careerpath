@@ -116,6 +116,7 @@ interface ProcessStep {
   went_well: string[];
   to_improve: string[];
   linked_step_id: string | null;
+  output_score: number | null;
   created_at: string;
 }
 
@@ -335,6 +336,7 @@ export default function ProcessDetailPage() {
     linked_step_id: "" as string,
   });
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState<string | null>(null);
+  const [isGeneratingScore, setIsGeneratingScore] = useState<string | null>(null);
   const [expandedRecommendations, setExpandedRecommendations] = useState<Record<string, boolean>>({});
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
   const [notesPreviewMode, setNotesPreviewMode] = useState<Record<string, boolean>>({});
@@ -1251,6 +1253,31 @@ export default function ProcessDetailPage() {
     ));
   };
 
+  const generateOutputScore = async (stepId: string) => {
+    setIsGeneratingScore(stepId);
+    try {
+      const response = await fetch(`/api/steps/${stepId}/score`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate score");
+      }
+
+      const { score } = await response.json();
+
+      // Update local state with new score
+      setSteps(prev => prev.map(s =>
+        s.id === stepId ? { ...s, output_score: score } : s
+      ));
+    } catch (error) {
+      console.error("Score generation failed:", error);
+      // Silently fail - score is optional
+    } finally {
+      setIsGeneratingScore(null);
+    }
+  };
+
   const handleUpdateOutputStep = async (
     stepId: string,
     field: 'went_well' | 'to_improve',
@@ -1270,6 +1297,18 @@ export default function ProcessDetailPage() {
     setSteps(prev => prev.map(s =>
       s.id === stepId ? { ...s, [field]: values } : s
     ));
+
+    // Generate score after update (debounced via timeout)
+    // Clear any pending score generation for this step
+    const step = steps.find(s => s.id === stepId);
+    const updatedWentWell = field === 'went_well' ? values : step?.went_well || [];
+    const updatedToImprove = field === 'to_improve' ? values : step?.to_improve || [];
+
+    // Only generate if there are items
+    if (updatedWentWell.length > 0 || updatedToImprove.length > 0) {
+      // Small delay to batch rapid updates
+      setTimeout(() => generateOutputScore(stepId), 500);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -1899,6 +1938,48 @@ export default function ProcessDetailPage() {
                                   Step {step.step_number}: {step.description || STEP_TYPE_OPTIONS.find(o => o.value === step.step_type)?.label}
                                 </h3>
                                 {getStatusBadge(step.status)}
+                                {/* Output Score Indicator */}
+                                {step.step_type === "output" && (
+                                  isGeneratingScore === step.id ? (
+                                    <div
+                                      className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center"
+                                      title="Calculating score..."
+                                    >
+                                      <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />
+                                    </div>
+                                  ) : step.output_score !== null ? (
+                                    <div
+                                      className={`relative h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                                        step.output_score >= 80
+                                          ? "bg-green-100 text-green-700"
+                                          : step.output_score >= 60
+                                          ? "bg-blue-100 text-blue-700"
+                                          : step.output_score >= 40
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-red-100 text-red-700"
+                                      }`}
+                                      title={`Interview Score: ${step.output_score}/100`}
+                                    >
+                                      {step.output_score}
+                                      {/* Circular progress ring */}
+                                      <svg
+                                        className="absolute inset-0 -rotate-90"
+                                        viewBox="0 0 28 28"
+                                      >
+                                        <circle
+                                          cx="14"
+                                          cy="14"
+                                          r="12"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2"
+                                          strokeDasharray={`${(step.output_score / 100) * 75.4} 75.4`}
+                                          className="opacity-40"
+                                        />
+                                      </svg>
+                                    </div>
+                                  ) : null
+                                )}
                                 {expandedSteps[step.id] ? (
                                   <ChevronUp className="h-4 w-4 text-slate-400" />
                                 ) : (
