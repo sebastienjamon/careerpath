@@ -749,40 +749,43 @@ export default function HighlightsPage() {
       {/* Collapsible Filter Section */}
       {(allSkillTags.length > 0 || allValueTags.length > 0) && (
         <Card className="bg-slate-50/50 overflow-hidden">
-          {/* Clickable Header */}
+          {/* Clickable Header - Compact */}
           <button
             onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-            className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-100/50 transition-colors"
+            className="w-full px-3 py-1.5 flex items-center justify-between hover:bg-slate-100/50 transition-colors"
           >
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <Filter className="h-4 w-4" />
-              <span>Filter Highlights</span>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+              <Filter className="h-3.5 w-3.5" />
+              <span>Filter</span>
               {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-1 bg-slate-200">
-                  {filteredHighlights.length} of {highlights.length}
-                </Badge>
+                <span className="text-slate-400">
+                  ({filteredHighlights.length}/{highlights.length})
+                </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {/* Collapsed summary of active filters */}
               {!isFilterExpanded && hasActiveFilters && (
-                <div className="flex items-center gap-1.5 mr-2">
-                  {activeSkillFilters.map((tag) => (
-                    <span key={tag} className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
+                <div className="flex items-center gap-1">
+                  {activeSkillFilters.slice(0, 3).map((tag) => (
+                    <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700">
                       {tag}
                     </span>
                   ))}
-                  {activeValueFilters.map((tag) => (
-                    <span key={tag} className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">
+                  {activeValueFilters.slice(0, 3).map((tag) => (
+                    <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700">
                       {tag}
                     </span>
                   ))}
+                  {(activeSkillFilters.length + activeValueFilters.length) > 6 && (
+                    <span className="text-[10px] text-slate-400">+{activeSkillFilters.length + activeValueFilters.length - 6}</span>
+                  )}
                 </div>
               )}
               {isFilterExpanded ? (
-                <ChevronUp className="h-4 w-4 text-slate-400" />
+                <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-slate-400" />
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
               )}
             </div>
           </button>
