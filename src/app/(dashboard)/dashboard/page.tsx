@@ -69,15 +69,33 @@ export default async function DashboardPage() {
     supabase
       .from("recruitment_processes")
       .select("id, company_name, company_website, job_title, status, applied_date, process_steps(id)")
-      .order("applied_date", { ascending: false, nullsFirst: false })
-      .limit(5),
+      .limit(10), // Fetch more to sort properly
   ]);
 
   const experiencesCount = experiencesResult.count;
   const processesCount = processesResult.count;
   const connectionsCount = connectionsResult.count;
   const upcomingSteps = (stepsResult.data || []) as unknown as UpcomingStep[];
-  const recentProcesses = (recentResult.data || []) as RecentProcess[];
+
+  // Sort processes: upcoming first, then by status priority
+  const statusOrder: Record<string, number> = {
+    upcoming: 0,
+    in_progress: 1,
+    offer_received: 2,
+    accepted: 3,
+    completed: 4,
+    rejected: 5,
+  };
+
+  const sortedProcesses = (recentResult.data || []).sort((a: any, b: any) => {
+    const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+    if (statusDiff !== 0) return statusDiff;
+    const dateA = a.applied_date ? new Date(a.applied_date).getTime() : 0;
+    const dateB = b.applied_date ? new Date(b.applied_date).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  const recentProcesses = sortedProcesses.slice(0, 5) as RecentProcess[];
 
   const activeProcessesCount = await supabase
     .from("recruitment_processes")

@@ -150,11 +150,12 @@ Return ONLY a JSON object: {"score": <number>, "brief": "<15 word summary>"}`;
     }
 
     const score = Math.min(100, Math.max(0, Math.round(scoreData.score)));
+    const brief = scoreData.brief || "Score generated";
 
-    // Save the score to the database
+    // Save the score and brief to the database
     const { error: updateError } = await supabase
       .from("process_steps")
-      .update({ output_score: score })
+      .update({ output_score: score, output_score_brief: brief })
       .eq("id", stepId);
 
     if (updateError) {

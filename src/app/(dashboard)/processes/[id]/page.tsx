@@ -117,6 +117,7 @@ interface ProcessStep {
   to_improve: string[];
   linked_step_id: string | null;
   output_score: number | null;
+  output_score_brief: string | null;
   created_at: string;
 }
 
@@ -1293,11 +1294,11 @@ export default function ProcessDetailPage() {
         throw new Error("Failed to generate score");
       }
 
-      const { score } = await response.json();
+      const { score, brief } = await response.json();
 
-      // Update local state with new score
+      // Update local state with new score and brief
       setSteps(prev => prev.map(s =>
-        s.id === stepId ? { ...s, output_score: score } : s
+        s.id === stepId ? { ...s, output_score: score, output_score_brief: brief } : s
       ));
     } catch (error) {
       console.error("Score generation failed:", error);
@@ -1977,35 +1978,45 @@ export default function ProcessDetailPage() {
                                       <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />
                                     </div>
                                   ) : step.output_score !== null ? (
-                                    <div
-                                      className={`relative h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                                        step.output_score >= 80
-                                          ? "bg-green-100 text-green-700"
-                                          : step.output_score >= 60
-                                          ? "bg-blue-100 text-blue-700"
-                                          : step.output_score >= 40
-                                          ? "bg-amber-100 text-amber-700"
-                                          : "bg-red-100 text-red-700"
-                                      }`}
-                                      title={`Interview Score: ${step.output_score}/100`}
-                                    >
-                                      {step.output_score}
-                                      {/* Circular progress ring */}
-                                      <svg
-                                        className="absolute inset-0 -rotate-90"
-                                        viewBox="0 0 28 28"
+                                    <div className="relative group/score">
+                                      <div
+                                        className={`relative h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold cursor-help ${
+                                          step.output_score >= 80
+                                            ? "bg-green-100 text-green-700"
+                                            : step.output_score >= 60
+                                            ? "bg-blue-100 text-blue-700"
+                                            : step.output_score >= 40
+                                            ? "bg-amber-100 text-amber-700"
+                                            : "bg-red-100 text-red-700"
+                                        }`}
                                       >
-                                        <circle
-                                          cx="14"
-                                          cy="14"
-                                          r="12"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          strokeWidth="2"
-                                          strokeDasharray={`${(step.output_score / 100) * 75.4} 75.4`}
-                                          className="opacity-40"
-                                        />
-                                      </svg>
+                                        {step.output_score}
+                                        {/* Circular progress ring */}
+                                        <svg
+                                          className="absolute inset-0 -rotate-90"
+                                          viewBox="0 0 28 28"
+                                        >
+                                          <circle
+                                            cx="14"
+                                            cy="14"
+                                            r="12"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeDasharray={`${(step.output_score / 100) * 75.4} 75.4`}
+                                            className="opacity-40"
+                                          />
+                                        </svg>
+                                      </div>
+                                      {/* Hover Tooltip */}
+                                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover/score:opacity-100 group-hover/score:visible transition-all duration-200 whitespace-nowrap z-50 max-w-xs">
+                                        <div className="font-semibold mb-1">Score: {step.output_score}/100</div>
+                                        {step.output_score_brief && (
+                                          <div className="text-slate-300 whitespace-normal">{step.output_score_brief}</div>
+                                        )}
+                                        {/* Arrow */}
+                                        <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-900 rotate-45" />
+                                      </div>
                                     </div>
                                   ) : null
                                 )}

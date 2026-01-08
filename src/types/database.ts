@@ -141,6 +141,7 @@ export interface Database {
           to_improve: string[]
           linked_step_id: string | null
           output_score: number | null
+          output_score_brief: string | null
           created_at: string
           updated_at: string
         }
@@ -158,6 +159,7 @@ export interface Database {
           to_improve?: string[]
           linked_step_id?: string | null
           output_score?: number | null
+          output_score_brief?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -175,6 +177,7 @@ export interface Database {
           to_improve?: string[]
           linked_step_id?: string | null
           output_score?: number | null
+          output_score_brief?: string | null
           created_at?: string
           updated_at?: string
         }
